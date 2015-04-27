@@ -1,8 +1,7 @@
-MODULE JPEGDecoder;
+MODULE JPEGDecoder; 
 
 IMPORT
 	SYSTEM, Codecs, KernelLog, Streams, Raster, WMGraphics, 	BIT,  Images := Raster;
-
 
 CONST
 
@@ -129,32 +128,289 @@ CONST
 
 	Max = 0FFFFFH;
 
+TYPE
+	JSampRow = POINTER TO ARRAY  OF CHAR;  (* JPEGMAXDIMENSION * RGBPIXELSIZE *)
+
+	(*es*) 
+	JSampRowList = POINTER TO RECORD row: JSampRow; next: JSampRowList; END; (* *)
+	JSampArray = POINTER TO JSADesc;
+	JSADesc = RECORD
+		row: ARRAY (BITSINJSAMPLE * MAXSAMPFACTOR) OF JSampRow; (*es: 8 x 4 *)
+	END;
+
+	JSampImage = POINTER TO JSIDesc;
+	JSIDesc = RECORD
+		comp: ARRAY MAXCOMPONENTS OF JSampArray; (*es: 4 *)
+	END;
+
+	JBlock = POINTER TO ARRAY DCTSIZE2 OF INTEGER;
+
+	DCTTable = POINTER TO ARRAY DCTSIZE2 OF REAL;
+	DCTITable = POINTER TO ARRAY DCTSIZE2 OF LONGINT;
+	DCTSTable = POINTER TO ARRAY DCTSIZE2 OF LONGINT;
+
+	JPEGCompInfo = POINTER TO RECORD
+			componentID: INTEGER;			(* ID fuer diesen Komponenten 0..255 *)
+			componentIndex: INTEGER;        (* Index in SOF-Marker *)
+			hSampFactor: SHORTINT;		    (* Horizontaler Sampling Faktor 1..4 *)
+			vSampFactor: SHORTINT;			(* Vertikaler Sampling Faktor 1..4 *)
+			quantTblNo: INTEGER;			   (* Nummer der Quantisierungstabelle 0..3 *)
+			dcTblNo: SHORTINT;				  (* Nummer der DC Entropy Tabelle 0..3 *)
+			acTblNo: SHORTINT;				  (* Nummer der AC Entropy Tabelle 0..3 *)
+			widthInBlocks: LONGINT;		   (* Breite in Blocks *)
+			heightInBlocks: LONGINT;		  (* Hoehe in Blocks *)
+			DCTScaledSize: INTEGER;			 (* Groesse eines DCT Blocks in Samples *)
+			downSampledWidth: LONGINT;	(* aktuelle Breite in Samples *)
+			downSampledHeight: LONGINT;    (* aktuelle Hoehe in Samples *)
+			componentNeeded: BOOLEAN;      (* Brauchen wir den Wert dieses Farbkomponenten ? *)
+			MCUWidth: INTEGER;     			(* # Bloecke per MCU, horizontal *)
+			MCUHeight: INTEGER; 				(* # Bloecke per MCU, vertikal *)
+			MCUBlocks: INTEGER; 				(* MCUWidth * MCUHeight *)
+			MCUSampleWidth: INTEGER;		(* MCUWidth in Samples *)
+			lastColWidth: INTEGER;			   (* # von nicht Dummy Blocks in der letzten MCU Zeile *)
+			lastRowHeight: INTEGER;			 (* # von nicht Dummy Blocks in der letzten MCU Reihe *)
+			dctTable: DCTTable;				 (* Zeiger auf die DCTTabelle bei IDCTFLOAT *)
+			dctITable: DCTITable;			   (* Zeiger auf die DCTTabelle bei IDCTINT *)
+			dctSTable: DCTSTable;			  (* Zeiger auf die DCTTabelle bei IDCTSCALE *)
+			IDCTMethod: PROCEDURE{DELEGATE}( compptr: JPEGCompInfo;
+											coefBlock: JBlock; outputBuf: JSampArray;
+											outputRow, outputCol: LONGINT);
+	END;
+
+	FSErr = POINTER TO ARRAY  OF INTEGER;
+
+	ColIndex = POINTER TO ARRAY 3, (MAXJSAMPLE + 1) OF INTEGER;
+
+	Marker = POINTER TO RECORD
+			sawSOI: BOOLEAN;
+			sawSOF: BOOLEAN;
+			nextRestartNum: INTEGER;	(* Nummer des naechsten Restart Intervalls *)
+			discardedBytes: INTEGER;	  (* Anzahl ueberlesener Bytes *)
+	END;
+
+	Master=POINTER TO RECORD
+			usingMergedUpsample: BOOLEAN;	(* im Moment nur FALSE implementiert *)
+			passType: SHORTINT;					 (* in welchem Pass sind wir? *)
+			passNumber: INTEGER;				  (* der wievielte Pass ist es ? *)
+			totalPasses: INTEGER;					 (* Totale Anzahl Passe *)
+			needPostPass: BOOLEAN;				(* Braucht es eine Nachbearbeitung: nur FALSE *)
+			isLastPass: BOOLEAN;					(* ist es der letzte Pass? *)
+			eoiProcessed: BOOLEAN;				 (* EOI schon erreicht *)
+	END;
+
+	JHuffTbl = POINTER TO RECORD			(* Huffman Tabelle *)
+			bits: ARRAY 17 OF INTEGER;
+			huffVal: ARRAY 256 OF INTEGER;
+	END;
+
+	JQuantTbl= POINTER TO RECORD
+			quantVal: ARRAY DCTSIZE2 OF LONGINT;
+	END;
+
+	SavableState = RECORD							  (* Status beim Entropy Dekodieren *)
+			getBuffer : LONGINT;
+			bitsLeft: INTEGER;
+			lastDcVal: ARRAY MAXCOMPSINSCAN OF INTEGER;
+	END;
+
+	WorkingState=POINTER TO RECORD
+			unreadMarker: CHAR;
+			cur: SavableState;
+			cInfo: CInfo;
+	END;
+
+	DDerivedTbl= POINTER TO RECORD
+			mincode: ARRAY 17 OF LONGINT;
+			maxcode: ARRAY 18 OF LONGINT;
+			valptr: ARRAY 17 OF INTEGER;
+			pub: JHuffTbl;
+			lookNBits: ARRAY 256 OF INTEGER;
+			lookSym: ARRAY 256 OF INTEGER;
+	END;
+
+	Entropy=POINTER TO RECORD
+			saved: SavableState;
+			restartsToGo: INTEGER;
+			printedEod: BOOLEAN;
+			dcDerivedTbls: ARRAY NUMHUFFTBLS OF DDerivedTbl;
+			acDerivedTbls: ARRAY NUMHUFFTBLS OF DDerivedTbl;
+	END;
+
+	Dest=POINTER TO  RECORD
+			buffer : JSampArray;				(* Zwischenspeicher: mehere Zeilen *)
+			bufferHeight: LONGINT;
+			(*pict: P.Picture;*)
+			curOutputRow: LONGINT;
+			padBytes: INTEGER;				(* # padding Bytes pro Zeile *)
+			rowWidth: LONGINT;			 (* Zeilen Breite mit Padding *)
+			dataWidth: LONGINT;	         (* Zeilen Breite ohne Padding *)
+			colors: ARRAY 256 OF INTEGER;
+	END;
+
+	CQuant= POINTER TO  RECORD
+			onOddRow: BOOLEAN;
+			colorQuantize: PROCEDURE{DELEGATE}(inputBuf: JSampArray;
+									outputBuf: JSampArray; outRowCtr: INTEGER; numRows: INTEGER);
+			fsErrors: ARRAY MAXQCOMPS OF FSErr;	(* Abweichungstabelle fuer Floyd Steinberg Dithering *)
+			colorIndex: ColIndex; 								(* bearbeitender Farbkomponent *)
+	END;
+
+	UpsampleProc = PROCEDURE{DELEGATE}( compptr: JPEGCompInfo;
+											 inputData: JSampArray; inRowCtr: LONGINT;
+											 outputData: JSampArray);
+
+	Upsample=POINTER TO  RECORD
+			needContextRows: BOOLEAN;
+			upsample: PROCEDURE{DELEGATE}( inputBuf: JSampImage; VAR inRowGroupCtr: LONGINT;
+											inRowGroupsAvail: LONGINT; outputBuf: JSampArray;
+											VAR outRowCtr: LONGINT; outRowsAvail: LONGINT);
+			colorBuf: ARRAY MAXCOMPONENTS OF JSampArray;	(* Zwischenspeicher *)
+			nextRowOut: INTEGER;
+			rowsToGo: LONGINT;
+			rowGroupHeight: ARRAY MAXCOMPONENTS OF INTEGER;  (* Anzahl Zeilen pro Groupe *)
+			hExpand: ARRAY MAXCOMPONENTS OF INTEGER;			(* Pixel Expansionsfaktoren horizontal *)
+			vExpand: ARRAY MAXCOMPONENTS OF INTEGER;			(* Pixel Expansionsfaktoren vertikal *)
+			methods: ARRAY MAXCOMPONENTS OF UpsampleProc;	 (* geeigente Upsampling Routine *)
+	END;
+
+	Main= POINTER TO RECORD
+			numChunks :LONGINT; 	(* # Chunks die pro Pass gemacht werden muessen *)
+			buffer: JSampImage;		  (* Zwischenspeicher *)
+			bufferFull: BOOLEAN;		(* Zwischenspeicher gefuellt ? *)
+			rowGroupCtr: LONGINT;	(* Zaehler fuer die Zeilengruppen*)
+			processData: PROCEDURE{DELEGATE}(outputBuf:JSampArray;
+												VAR outRowCtr:LONGINT; outRowsAvail:LONGINT);
+	END;
+
+	Coef=POINTER TO RECORD
+			decompressData: PROCEDURE{DELEGATE}(outputBuf:JSampImage):BOOLEAN;
+			MCUColNum: LONGINT;	(* aktuelle Kolonne *)
+			MCURowNum: LONGINT;  (* aktuelle Zeile *)
+			MCUBuffer: ARRAY MAXBLOCKSINMCU OF JBlock;	(* Zwischenspeicher *)
+			wholeImage: BOOLEAN;	 (* ganzes Bild zwischenspeichern? FALSE *)
+	END;
+
+	Post=POINTER TO RECORD
+			postProcessData: PROCEDURE{DELEGATE}(inputBuf:JSampImage;
+													VAR inRowGroupCtr, inRowGroupsAvail: LONGINT;
+													outputBuf: JSampArray; VAR outRowCtr: LONGINT;
+													VAR outRowsAvail: LONGINT);
+			buffer: JSampArray;			 (* Zwischenspeicher *)
+			stripHeight: LONGINT;		(* # moegliche Zeilen im Zwischenspeicher *)
+			wholeImage: BOOLEAN;	  (* ganzes Bild zwischenspeichern? FALSE *)
+	END;
+
+	CConvert=POINTER TO RECORD
+			colorConvert: PROCEDURE{DELEGATE}(inputBuf:ARRAY OF JSampArray;
+												inputRow: LONGINT; outputBuf:JSampArray;
+												outRowCtr: LONGINT; numRows:INTEGER);
+	END;
+
+	CInfo = POINTER TO RECORD
+			globalState: INTEGER; 		  		(* Globaler Status der Dekomprimierung *)
+			imageWidth: LONGINT;				(* nominale Bildbreite, aus SOF Marker *)
+			imageHeight: LONGINT;				(* nominale Bildhoehe, aus SOF Marker *)
+			JPEGMAXDIMENSION : LONGINT; (* :=  MAX(imageWidth, imageHeight) *)
+			numComponents: SHORTINT;	 	(* Anzahl Farbkomponenten des Bildes *)
+			selectIDCT: SHORTINT;			  	(* gewuenschte IDCT Routine *)
+			jpegColorSpace: INTEGER;		 	 (* Farbformat des JPEG Bildes *)
+			outColorSpace: INTEGER;		   	(* gewuenschtes Farbformat des Output *)
+			scaleNum, scaleDenom: INTEGER;   (* im Moment nicht implementiert *)
+			outputGamma: LONGREAL;	   	(* im Moment nicht implementiert *)
+			rawDataOut: BOOLEAN;				(* rawDataOut=TRUE -> nicht sinnvoll *)
+			doFancyUpsampling :BOOLEAN; 	(* TRUE -> Fancy Upsampling anwenden *)
+			sawJFIFMarker: BOOLEAN;			(* Kontoll-Flag *)
+			sawAdobeMarker: BOOLEAN;	 	(* Kontoll-Flag *)
+			AdobeTransform: INTEGER;		   (* Farb Transformations Code des Adobe Markers *)
+			compInfo: ARRAY MAXCOMPONENTS OF JPEGCompInfo; (* Pointer auf Farbkomponenten *)
+			unreadMarker: CHAR;					(* angetroffener aber noch nicht bearbeiteter Marker *)
+			restartInterval: LONGINT;			   (* MCUs per Restart interval, oder 0 fuer kein Restart *)
+			arithDcL: ARRAY NUMARITHTBLS OF INTEGER;	(*L Werte fuer DC arith.coding Tabellen *)
+			arithDcU: ARRAY NUMARITHTBLS OF INTEGER;	(*U Werte fuer DC arith.coding Tabellen *)
+			arithAcK: ARRAY NUMARITHTBLS OF INTEGER;	(*Kx Werte fuer AC arith.coding Tabellen *)
+			arithCode: BOOLEAN;					(* TRUE= arith. Kodierung, FALSE=Huffman Kodierung *)
+			CCIR601Sampling: BOOLEAN;	 	(* TRUE=first samples are cosited, nicht implementiert *)
+			densityUnit: INTEGER;				   (* JFIF Code fuer die Pixeleinheiten *)
+			XDensity, YDensity: LONGINT;	 	(* Horizontale, Vertikale Aufloesung *)
+			dataPrecision: SHORTINT;			   (* Bildgenauigkeit *)
+			compsInScan: SHORTINT;			   (* Anzahl Farbkomponenten im JPEG File *)
+			curCompInfo: ARRAY MAXCOMPSINSCAN OF JPEGCompInfo;	(*Farbkomponente an i.ter Stelle in SOS*)
+			dcHuffTbl: ARRAY NUMHUFFTBLS OF JHuffTbl;    	(* Zeiger auf Huffman Tabellen *)
+			acHuffTbl: ARRAY NUMHUFFTBLS OF JHuffTbl;    	(* Zeiger auf Huffman Tabellen *)
+			quantTbl: ARRAY NUMQUANTTBLS OF JQuantTbl; 	(* Zeiger auf Quantisierungs Tabellen *)
+			outputWidth: LONGINT;				(* Breite des Output Bildes *)
+			outputHeight: LONGINT;				(* Hoehe des Output Bildes *)
+			outputScanline: LONGINT;			  (* 0 .. outputHeight -1 *)
+			totaliMCURows: LONGINT;			 (* # iMCU Zeilen, JPEGCoef *)
+			MCUsPerRow: LONGINT;			   (* # MCU in einer Zeile *)
+			MCURowsInScan: LONGINT;		   (* # MCU Zeilen im Bild *)
+			outColorComponents: INTEGER;	  (* # Farbkomponenten im Output File *)
+			outputComponents: INTEGER;         (* # Farbkomponenten die Ausgegeben werden *)
+			maxHSampFactor: INTEGER;		   (* groesster HSampFactor *)
+			maxVSampFactor: INTEGER;			(* groesster VSampFactor *)
+			recOutbufHeight: INTEGER;			 (* Minimale Hoehe des Scanline Buffers *)
+			blocksInMCU: INTEGER;				 (* # DCT Bloecke in einer MCU *)
+			MCUMembership: ARRAY MAXBLOCKSINMCU OF INTEGER; (* Farbkomponentenzugehoerigkeit *)
+			twoPassQuantize: BOOLEAN;           (* nur FALSE implementiert *)
+			ditherMode: SHORTINT;				  (* gewuenschtes Dithering Verfahrens *)
+			desiredNumberOfColors: INTEGER;	(* gewuenschte Anzahl Farben im Output *)
+			actualNumberOfColors: INTEGER;	 (* berechnete Anzahl Farben im Output *)
+			minDCTScaledSize: INTEGER;			(* kleinste DCTScaledSize fuer jeden Farbkomponenten *)
+			colorMap: ColIndex;					(* Zeiger auf die Farbtabelle *)
+			colorMode: INTEGER;					(* Alte ode neue Farbtabelle ? *)
+			post: Post;								(* Zeiger auf das Postkontroller Objekt *)
+			coef: Coef;								(* Zeiger auf den Koeffizientenkontroller *)
+			cconvert: CConvert;					 (* Zeiger auf das ColorConvert Objekt *)
+			cquant: CQuant;						 (* Zeiger auf das ColorQuantisierungs Objekt *)
+			upsample: Upsample;				  (* Zeiger auf das Upsample Objekt *)
+			entropy: Entropy;						(* Zeiger auf das Entropy Objekt (Huffman) *)
+			reader:  Streams.Reader;					(* Source *)
+			bmpRows,oldbmpRows: JSampRowList;
+			err: INTEGER;
+			marker: Marker;						 (* Zeiger auf das Markerleser Objekt *)
+			master: Master;						  (* Zeiger auf das Masterkontroll Objekt *)
+			main: Main;							   (* Zeiger auf das Mainkontroll Objekt *)
+	END;
+
+VAR
+	ZAG: ARRAY (DCTSIZE2 + 16) OF SHORTINT; (*threadsafe*)
+	ZIG : ARRAY DCTSIZE2 OF SHORTINT; (*threadsafe*)
+	RL: ARRAY 1024 OF INTEGER; (*threadsafe*)
+	i , x: INTEGER; (*Hilfsvariablen fuer Initialisierung in body, threadsafe *)
+	crRTab,cbBTab: ARRAY 257 OF INTEGER; (*threadsafe*)
+	crGTab,cbGTab: ARRAY 257 OF LONGINT; (*threadsafe*)
+	fix14,fix17,fix07,fix03: LONGINT; (*threadsafe*)
+	extendTest: ARRAY 16 OF INTEGER; (*threadsafe*)
+	extendOff: ARRAY 16 OF INTEGER; (*threadsafe*)
 
 
+(*! to do: simplify internal parameter passing - is redundant  *)
 TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 	VAR
 		width, height : LONGINT;
 		backGrndCol: Raster.Pixel; fmt: Raster.Format; transparent, interlaced: BOOLEAN;
 		lcdFlags, backGrndIdx : CHAR;
 		img : Raster.Image;
-		cInfo: CInfoPtr;
-		dest: DestPtr;
+		cInfo: CInfo;
+		dest: Dest;
+		logger*:Streams.Writer;
 
 	(* open the decoder on an InputStream *)
 	PROCEDURE Open*(in : Streams.Reader; VAR res : LONGINT);
 	VAR trap: BOOLEAN;
 	BEGIN
+		Streams.OpenWriter(logger, KernelLog.Send); (*default logger, can be overwritten with NIL or alternative writer *)
 		IF in = NIL THEN
-			KernelLog.String("JPEGDecoder: Input Stream is NIL");
+			IF logger#NIL THEN logger.String("JPEGDecoder: Input Stream is NIL"); logger.Update; END;
 			trap := TRUE;
 		ELSE
 			res := -1;
 			NEW(cInfo);
 			cInfo.err := 0;
 			NEW(dest);
-			jpegCreateDecompress(cInfo);
+			jpegCreateDecompress();
 			cInfo.reader := in;
-			jpegReadHeader(cInfo);
+			jpegReadHeader();
 		END;
 	FINALLY
 		IF ~trap & (cInfo.err = 0) THEN res := Codecs.ResOk END;
@@ -185,8 +441,6 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 		idct, factor, dither, colorMode: INTEGER;
 		ch: CHAR;
 	BEGIN
-
-
 		IF cInfo.err # 0 THEN RETURN END;
 		IF img=NIL THEN NEW(img) END; (* was: NEW(img);*) (*PH100226*)
 		idct := Integer; factor:=1; dither := DitherFS; colorMode := ColorsOld;
@@ -202,15 +456,14 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 		END;
 		IF dither = DitherNone THEN cInfo.ditherMode := DitherNone END;
 
-		jinitDest(cInfo,dest);
+		jinitDest(dest);
 		IF cInfo.err # 0 THEN RETURN END;
 
-		jpegStartDecompress(cInfo);
-
+		jpegStartDecompress();
 
 		zaehler := 0;
 		WHILE cInfo.outputScanline < cInfo.outputHeight DO
-			numScanlines := jpegReadScanlines(cInfo,dest.buffer,dest.bufferHeight);
+			numScanlines := jpegReadScanlines(dest.buffer,dest.bufferHeight);
 			zaehler := zaehler + numScanlines;
 		END;
 
@@ -218,40 +471,38 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 		IF h > 0 THEN y := 0; dy := 1
 		ELSE h := -h; y := h-1; dy := -1
 		END;
-		(*PH100226*)
-			IF (img.width#w) OR (img.height#h) OR (img.fmt.code#Raster.bgr888) THEN (*! gray and palette formats*)
-				Images.Create(img, SHORT(w), SHORT(h), Images.BGR888);
-			END;
-			(*Images.Create(img, SHORT(w), SHORT(h), Images.BGR888);*)
-			ChangeDirection(cInfo.bmpRows);
-			WHILE cInfo.bmpRows # NIL DO
-				rowOffset := 0;
-				x := 0; p := y * img.bpr;
-				IF cInfo.numComponents=3 THEN
-					WHILE x < w DO
-						img.mem[p    ] := cInfo.bmpRows.row[rowOffset +2 ]; INC(rowOffset);
-						img.mem[p+1] := cInfo.bmpRows.row[rowOffset      ]; INC(rowOffset);
-						img.mem[p+2] := cInfo.bmpRows.row[rowOffset -2 ]; INC(rowOffset);
-						INC(x); INC(p, 3);
-					END;
-
-				ELSIF cInfo.numComponents=1 THEN
-					WHILE x < w DO
-						ch:=cInfo.bmpRows.row[rowOffset];
-						img.mem[p   ] := ch; 
-						img.mem[p+1] := ch;
-						img.mem[p+2] := ch;
-						INC(rowOffset);
-						INC(x); INC(p, 3);
-					END;
-				ELSE (*! TBD*)
+		IF (img.width#w) OR (img.height#h) OR (img.fmt.code#Raster.bgr888) THEN (*! to do: gray and palette formats*)
+			Images.Create(img, SHORT(w), SHORT(h), Images.BGR888);
+		END;
+		ChangeDirection(cInfo.bmpRows);
+		WHILE cInfo.bmpRows # NIL DO
+			rowOffset := 0;
+			x := 0; p := y * img.bpr;
+			IF cInfo.numComponents=3 THEN
+				WHILE x < w DO
+					img.mem[p    ] := cInfo.bmpRows.row[rowOffset +2 ]; INC(rowOffset);
+					img.mem[p+1] := cInfo.bmpRows.row[rowOffset      ]; INC(rowOffset);
+					img.mem[p+2] := cInfo.bmpRows.row[rowOffset -2 ]; INC(rowOffset);
+					INC(x); INC(p, 3);
 				END;
-		 	   INC(y, dy);
-		 	   Rows:=cInfo.bmpRows;
-				cInfo.bmpRows := cInfo.bmpRows.next;
-				Rows.next:=cInfo.oldbmpRows; cInfo.oldbmpRows:=Rows;
+
+			ELSIF cInfo.numComponents=1 THEN
+				WHILE x < w DO
+					ch:=cInfo.bmpRows.row[rowOffset];
+					img.mem[p   ] := ch; 
+					img.mem[p+1] := ch;
+					img.mem[p+2] := ch;
+					INC(rowOffset);
+					INC(x); INC(p, 3);
+				END;
+			ELSE (*! TBD*)
 			END;
-		jpegFinishDecompress(cInfo);
+	 	 	INC(y, dy);
+	 	 	Rows:=cInfo.bmpRows;
+			cInfo.bmpRows := cInfo.bmpRows.next;
+			Rows.next:=cInfo.oldbmpRows; cInfo.oldbmpRows:=Rows;
+		END;
+		jpegFinishDecompress();
 	END GetNativeImage;
 
 	(* renders the image into the given Raster.Image at the given progressionLevel *)
@@ -264,305 +515,21 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 	END Render;
 
 
-END JPEGDecoder;
-
-
-
-TYPE
-
-	CInfoPtr = POINTER TO CInfoDesc;
-
-
-	JSampRow = POINTER TO ARRAY  OF CHAR;  (* JPEGMAXDIMENSION * RGBPIXELSIZE *)
-
-	(*es*) JSampRowList = POINTER TO RECORD row: JSampRow; next: JSampRowList; END; (**)
-	JSampArray = POINTER TO JSADesc;
-	JSADesc = RECORD
-		row: ARRAY (BITSINJSAMPLE * MAXSAMPFACTOR) OF JSampRow; (*es: 8 x 4 *)
-	END;
-
-	JSampImage = POINTER TO JSIDesc;
-	JSIDesc = RECORD
-		comp: ARRAY MAXCOMPONENTS OF JSampArray; (*es: 4 *)
-	END;
-
-	JBlock = POINTER TO ARRAY DCTSIZE2 OF INTEGER;
-
-	DCTTablePtr = POINTER TO ARRAY DCTSIZE2 OF REAL;
-	DCTITablePtr = POINTER TO ARRAY DCTSIZE2 OF LONGINT;
-	DCTSTablePtr = POINTER TO ARRAY DCTSIZE2 OF LONGINT;
-
-	JPEGCompInfoPtr = POINTER TO JPEGCompInfoDesc;
-	JPEGCompInfoDesc = RECORD
-			componentID: INTEGER;			(* ID fuer diesen Komponenten 0..255 *)
-			componentIndex: INTEGER;        (* Index in SOF-Marker *)
-			hSampFactor: SHORTINT;		    (* Horizontaler Sampling Faktor 1..4 *)
-			vSampFactor: SHORTINT;			(* Vertikaler Sampling Faktor 1..4 *)
-			quantTblNo: INTEGER;			   (* Nummer der Quantisierungstabelle 0..3 *)
-			dcTblNo: SHORTINT;				  (* Nummer der DC Entropy Tabelle 0..3 *)
-			acTblNo: SHORTINT;				  (* Nummer der AC Entropy Tabelle 0..3 *)
-			widthInBlocks: LONGINT;		   (* Breite in Blocks *)
-			heightInBlocks: LONGINT;		  (* Hoehe in Blocks *)
-			DCTScaledSize: INTEGER;			 (* Groesse eines DCT Blocks in Samples *)
-			downSampledWidth: LONGINT;	(* aktuelle Breite in Samples *)
-			downSampledHeight: LONGINT;    (* aktuelle Hoehe in Samples *)
-			componentNeeded: BOOLEAN;      (* Brauchen wir den Wert dieses Farbkomponenten ? *)
-			MCUWidth: INTEGER;     			(* # Bloecke per MCU, horizontal *)
-			MCUHeight: INTEGER; 				(* # Bloecke per MCU, vertikal *)
-			MCUBlocks: INTEGER; 				(* MCUWidth * MCUHeight *)
-			MCUSampleWidth: INTEGER;		(* MCUWidth in Samples *)
-			lastColWidth: INTEGER;			   (* # von nicht Dummy Blocks in der letzten MCU Zeile *)
-			lastRowHeight: INTEGER;			 (* # von nicht Dummy Blocks in der letzten MCU Reihe *)
-			dctTable: DCTTablePtr;				 (* Zeiger auf die DCTTabelle bei IDCTFLOAT *)
-			dctITable: DCTITablePtr;			   (* Zeiger auf die DCTTabelle bei IDCTINT *)
-			dctSTable: DCTSTablePtr;			  (* Zeiger auf die DCTTabelle bei IDCTSCALE *)
-			IDCTMethod: PROCEDURE(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
-											coefBlock: JBlock; outputBuf: JSampArray;
-											outputRow, outputCol: LONGINT);
-	END;
-
-	FSErrPtr = POINTER TO ARRAY  OF INTEGER;
-
-	ColIndexPtr = POINTER TO ColIndex;
-	ColIndex = ARRAY 3, (MAXJSAMPLE + 1) OF INTEGER;
-
-	MarkerPtr = POINTER TO MarkerDesc;
-	MarkerDesc = RECORD
-			sawSOI: BOOLEAN;
-			sawSOF: BOOLEAN;
-			nextRestartNum: INTEGER;	(* Nummer des naechsten Restart Intervalls *)
-			discardedBytes: INTEGER;	  (* Anzahl ueberlesener Bytes *)
-	END;
-
-	MasterPtr = POINTER TO MasterDesc;
-	MasterDesc = RECORD
-			usingMergedUpsample: BOOLEAN;	(* im Moment nur FALSE implementiert *)
-			passType: SHORTINT;					 (* in welchem Pass sind wir? *)
-			passNumber: INTEGER;				  (* der wievielte Pass ist es ? *)
-			totalPasses: INTEGER;					 (* Totale Anzahl Passe *)
-			needPostPass: BOOLEAN;				(* Braucht es eine Nachbearbeitung: nur FALSE *)
-			isLastPass: BOOLEAN;					(* ist es der letzte Pass? *)
-			eoiProcessed: BOOLEAN;				 (* EOI schon erreicht *)
-	END;
-
-	JHuffTblPtr = POINTER TO JHuffTbl;			(* Huffman Tabelle *)
-	JHuffTbl = RECORD
-			bits: ARRAY 17 OF INTEGER;
-			huffVal: ARRAY 256 OF INTEGER;
-	END;
-
-	JQuantTblPtr = POINTER TO JQuantTbl;		(* Quantisierungs Tabelle *)
-	JQuantTbl = RECORD
-			quantVal: ARRAY DCTSIZE2 OF LONGINT;
-	END;
-
-	SavableState = RECORD							  (* Status beim Entropy Dekodieren *)
-			getBuffer : LONGINT;
-			bitsLeft: INTEGER;
-			lastDcVal: ARRAY MAXCOMPSINSCAN OF INTEGER;
-	END;
-
-	WorkingStatePtr = POINTER TO WorkingState;
-	WorkingState = RECORD
-			unreadMarker: CHAR;
-			cur: SavableState;
-			cInfo: CInfoPtr;
-	END;
-
-	DDerivedTblPtr = POINTER TO DDerivedTbl;
-	DDerivedTbl = RECORD
-			mincode: ARRAY 17 OF LONGINT;
-			maxcode: ARRAY 18 OF LONGINT;
-			valptr: ARRAY 17 OF INTEGER;
-			pub: JHuffTblPtr;
-			lookNBits: ARRAY 256 OF INTEGER;
-			lookSym: ARRAY 256 OF INTEGER;
-	END;
-
-	EntropyPtr = POINTER TO EntropyDesc;
-	EntropyDesc = RECORD
-			saved: SavableState;
-			restartsToGo: INTEGER;
-			printedEod: BOOLEAN;
-			dcDerivedTbls: ARRAY NUMHUFFTBLS OF DDerivedTblPtr;
-			acDerivedTbls: ARRAY NUMHUFFTBLS OF DDerivedTblPtr;
-	END;
-
-	DestPtr = POINTER TO DestDesc;
-	DestDesc = RECORD
-			buffer : JSampArray;				(* Zwischenspeicher: mehere Zeilen *)
-			bufferHeight: LONGINT;
-			(*pict: P.Picture;*)
-			curOutputRow: LONGINT;
-			padBytes: INTEGER;				(* # padding Bytes pro Zeile *)
-			rowWidth: LONGINT;			 (* Zeilen Breite mit Padding *)
-			dataWidth: LONGINT;	         (* Zeilen Breite ohne Padding *)
-			colors: ARRAY 256 OF INTEGER;
-	END;
-
-	CQuantPtr = POINTER TO CQuantDesc;
-	CQuantDesc = RECORD
-			onOddRow: BOOLEAN;
-			colorQuantize: PROCEDURE(cInfo:CInfoPtr; inputBuf: JSampArray;
-									outputBuf: JSampArray; outRowCtr: INTEGER; numRows: INTEGER);
-			fsErrors: ARRAY MAXQCOMPS OF FSErrPtr;	(* Abweichungstabelle fuer Floyd Steinberg Dithering *)
-			colorIndex: ColIndex; 								(* bearbeitender Farbkomponent *)
-	END;
-
-	UpsampleProc = PROCEDURE(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
-											 inputData: JSampArray; inRowCtr: LONGINT;
-											 outputData: JSampArray);
-
-	UpsamplePtr = POINTER TO UpsampleDesc;
-	UpsampleDesc = RECORD
-			needContextRows: BOOLEAN;
-			upsample: PROCEDURE(cInfo: CInfoPtr; inputBuf: JSampImage; VAR inRowGroupCtr: LONGINT;
-											inRowGroupsAvail: LONGINT; outputBuf: JSampArray;
-											VAR outRowCtr: LONGINT; outRowsAvail: LONGINT);
-			colorBuf: ARRAY MAXCOMPONENTS OF JSampArray;	(* Zwischenspeicher *)
-			nextRowOut: INTEGER;
-			rowsToGo: LONGINT;
-			rowGroupHeight: ARRAY MAXCOMPONENTS OF INTEGER;  (* Anzahl Zeilen pro Groupe *)
-			hExpand: ARRAY MAXCOMPONENTS OF INTEGER;			(* Pixel Expansionsfaktoren horizontal *)
-			vExpand: ARRAY MAXCOMPONENTS OF INTEGER;			(* Pixel Expansionsfaktoren vertikal *)
-			methods: ARRAY MAXCOMPONENTS OF UpsampleProc;	 (* geeigente Upsampling Routine *)
-	END;
-
-	MainPtr = POINTER TO MainDesc;
-	MainDesc = RECORD
-			numChunks :LONGINT; 	(* # Chunks die pro Pass gemacht werden muessen *)
-			buffer: JSampImage;		  (* Zwischenspeicher *)
-			bufferFull: BOOLEAN;		(* Zwischenspeicher gefuellt ? *)
-			rowGroupCtr: LONGINT;	(* Zaehler fuer die Zeilengruppen*)
-			processData: PROCEDURE(cInfo:CInfoPtr; outputBuf:JSampArray;
-												VAR outRowCtr:LONGINT; outRowsAvail:LONGINT);
-	END;
-
-	CoefPtr = POINTER TO CoefDesc;
-	CoefDesc = RECORD
-			decompressData: PROCEDURE(cInfo:CInfoPtr;outputBuf:JSampImage):BOOLEAN;
-			MCUColNum: LONGINT;	(* aktuelle Kolonne *)
-			MCURowNum: LONGINT;  (* aktuelle Zeile *)
-			MCUBuffer: ARRAY MAXBLOCKSINMCU OF JBlock;	(* Zwischenspeicher *)
-			wholeImage: BOOLEAN;	 (* ganzes Bild zwischenspeichern? FALSE *)
-	END;
-
-	PostPtr = POINTER TO PostDesc;
-	PostDesc = RECORD
-			postProcessData: PROCEDURE(cInfo:CInfoPtr; inputBuf:JSampImage;
-													VAR inRowGroupCtr, inRowGroupsAvail: LONGINT;
-													outputBuf: JSampArray; VAR outRowCtr: LONGINT;
-													VAR outRowsAvail: LONGINT);
-			buffer: JSampArray;			 (* Zwischenspeicher *)
-			stripHeight: LONGINT;		(* # moegliche Zeilen im Zwischenspeicher *)
-			wholeImage: BOOLEAN;	  (* ganzes Bild zwischenspeichern? FALSE *)
-	END;
-
-	CConvertPtr = POINTER TO CConvertDesc;
-	CConvertDesc = RECORD
-			colorConvert: PROCEDURE(cInfo:CInfoPtr; inputBuf:ARRAY OF JSampArray;
-												inputRow: LONGINT; outputBuf:JSampArray;
-												outRowCtr: LONGINT; numRows:INTEGER);
-	END;
-
-	CInfoDesc = RECORD
-			globalState: INTEGER; 		  		(* Globaler Status der Dekomprimierung *)
-			imageWidth: LONGINT;				(* nominale Bildbreite, aus SOF Marker *)
-			imageHeight: LONGINT;				(* nominale Bildhoehe, aus SOF Marker *)
-			JPEGMAXDIMENSION : LONGINT; (* :=  MAX(imageWidth, imageHeight) *)
-			numComponents: SHORTINT;	 	(* Anzahl Farbkomponenten des Bildes *)
-			selectIDCT: SHORTINT;			  	(* gewuenschte IDCT Routine *)
-			jpegColorSpace: INTEGER;		 	 (* Farbformat des JPEG Bildes *)
-			outColorSpace: INTEGER;		   	(* gewuenschtes Farbformat des Output *)
-			scaleNum, scaleDenom: INTEGER;   (* im Moment nicht implementiert *)
-			outputGamma: LONGREAL;	   	(* im Moment nicht implementiert *)
-			rawDataOut: BOOLEAN;				(* rawDataOut=TRUE -> nicht sinnvoll *)
-			doFancyUpsampling :BOOLEAN; 	(* TRUE -> Fancy Upsampling anwenden *)
-			sawJFIFMarker: BOOLEAN;			(* Kontoll-Flag *)
-			sawAdobeMarker: BOOLEAN;	 	(* Kontoll-Flag *)
-			AdobeTransform: INTEGER;		   (* Farb Transformations Code des Adobe Markers *)
-			compInfo: ARRAY MAXCOMPONENTS OF JPEGCompInfoPtr; (* Pointer auf Farbkomponenten *)
-			unreadMarker: CHAR;					(* angetroffener aber noch nicht bearbeiteter Marker *)
-			restartInterval: LONGINT;			   (* MCUs per Restart interval, oder 0 fuer kein Restart *)
-			arithDcL: ARRAY NUMARITHTBLS OF INTEGER;	(*L Werte fuer DC arith.coding Tabellen *)
-			arithDcU: ARRAY NUMARITHTBLS OF INTEGER;	(*U Werte fuer DC arith.coding Tabellen *)
-			arithAcK: ARRAY NUMARITHTBLS OF INTEGER;	(*Kx Werte fuer AC arith.coding Tabellen *)
-			arithCode: BOOLEAN;					(* TRUE= arith. Kodierung, FALSE=Huffman Kodierung *)
-			CCIR601Sampling: BOOLEAN;	 	(* TRUE=first samples are cosited, nicht implementiert *)
-			densityUnit: INTEGER;				   (* JFIF Code fuer die Pixeleinheiten *)
-			XDensity, YDensity: LONGINT;	 	(* Horizontale, Vertikale Aufloesung *)
-			dataPrecision: SHORTINT;			   (* Bildgenauigkeit *)
-			compsInScan: SHORTINT;			   (* Anzahl Farbkomponenten im JPEG File *)
-			curCompInfo: ARRAY MAXCOMPSINSCAN OF JPEGCompInfoPtr;	(*Farbkomponente an i.ter Stelle in SOS*)
-			dcHuffTbl: ARRAY NUMHUFFTBLS OF JHuffTblPtr;    	(* Zeiger auf Huffman Tabellen *)
-			acHuffTbl: ARRAY NUMHUFFTBLS OF JHuffTblPtr;    	(* Zeiger auf Huffman Tabellen *)
-			quantTbl: ARRAY NUMQUANTTBLS OF JQuantTblPtr; 	(* Zeiger auf Quantisierungs Tabellen *)
-			outputWidth: LONGINT;				(* Breite des Output Bildes *)
-			outputHeight: LONGINT;				(* Hoehe des Output Bildes *)
-			outputScanline: LONGINT;			  (* 0 .. outputHeight -1 *)
-			totaliMCURows: LONGINT;			 (* # iMCU Zeilen, JPEGCoef *)
-			MCUsPerRow: LONGINT;			   (* # MCU in einer Zeile *)
-			MCURowsInScan: LONGINT;		   (* # MCU Zeilen im Bild *)
-			outColorComponents: INTEGER;	  (* # Farbkomponenten im Output File *)
-			outputComponents: INTEGER;         (* # Farbkomponenten die Ausgegeben werden *)
-			maxHSampFactor: INTEGER;		   (* groesster HSampFactor *)
-			maxVSampFactor: INTEGER;			(* groesster VSampFactor *)
-			recOutbufHeight: INTEGER;			 (* Minimale Hoehe des Scanline Buffers *)
-			blocksInMCU: INTEGER;				 (* # DCT Bloecke in einer MCU *)
-			MCUMembership: ARRAY MAXBLOCKSINMCU OF INTEGER; (* Farbkomponentenzugehoerigkeit *)
-			twoPassQuantize: BOOLEAN;           (* nur FALSE implementiert *)
-			ditherMode: SHORTINT;				  (* gewuenschtes Dithering Verfahrens *)
-			desiredNumberOfColors: INTEGER;	(* gewuenschte Anzahl Farben im Output *)
-			actualNumberOfColors: INTEGER;	 (* berechnete Anzahl Farben im Output *)
-			minDCTScaledSize: INTEGER;			(* kleinste DCTScaledSize fuer jeden Farbkomponenten *)
-			colorMap: ColIndexPtr;					(* Zeiger auf die Farbtabelle *)
-			colorMode: INTEGER;					(* Alte ode neue Farbtabelle ? *)
-			post: PostPtr;								(* Zeiger auf das Postkontroller Objekt *)
-			coef: CoefPtr;								(* Zeiger auf den Koeffizientenkontroller *)
-			cconvert: CConvertPtr;					 (* Zeiger auf das ColorConvert Objekt *)
-			cquant: CQuantPtr;						 (* Zeiger auf das ColorQuantisierungs Objekt *)
-			upsample: UpsamplePtr;				  (* Zeiger auf das Upsample Objekt *)
-			entropy: EntropyPtr;						(* Zeiger auf das Entropy Objekt (Huffman) *)
-			reader:  Streams.Reader;					(* Source *)
-			bmpRows,oldbmpRows: JSampRowList;
-			err: INTEGER;
-			marker: MarkerPtr;						 (* Zeiger auf das Markerleser Objekt *)
-			master: MasterPtr;						  (* Zeiger auf das Masterkontroll Objekt *)
-			main: MainPtr;							   (* Zeiger auf das Mainkontroll Objekt *)
-	END;
-
-VAR
-	ZAG: ARRAY (DCTSIZE2 + 16) OF SHORTINT; (*threadsafe*)
-	ZIG : ARRAY DCTSIZE2 OF SHORTINT; (*threadsafe*)
-	RL: ARRAY 1024 OF INTEGER; (*threadsafe*)
-	i , x: INTEGER; (*Hilfsvariablen fuer Initialisierung in body, threadsafe *)
-	crRTab,cbBTab: ARRAY 257 OF INTEGER; (*threadsafe*)
-	crGTab,cbGTab: ARRAY 257 OF LONGINT; (*threadsafe*)
-	fix14,fix17,fix07,fix03: LONGINT; (*threadsafe*)
-	extendTest: ARRAY 16 OF INTEGER; (*threadsafe*)
-	extendOff: ARRAY 16 OF INTEGER; (*threadsafe*)
-
-
-
-
 
 (* *****     Start Marker Prozeduren     ***** *)
 
-	PROCEDURE ErrMsg(cInfo: CInfoPtr; msg: ARRAY OF CHAR; num: INTEGER);
+	PROCEDURE ErrMsg(msg: ARRAY OF CHAR; num: INTEGER);
 	BEGIN
-		IF cInfo.err = 0 THEN	(* first error *)
-			KernelLog.String("JPEG: ");  KernelLog.String(msg);  KernelLog.Ln();
-			KernelLog.Int(num, 1);  KernelLog.String( ")");  KernelLog.Ln();
+		IF (logger#NIL) & (cInfo.err = 0) THEN	(* first error *)
+			logger.String("JPEG: ");  logger.String(msg);  logger.String( "("); 
+			logger.Int(num, 1);  logger.String( ")");  logger.Ln(); 
+			logger.Update;
 		END;
 		cInfo.err := num
 	END ErrMsg;
 
-
-
-
-
 	(* Lesen eines unsigned INTEGER vom InputFile, 1 Byte  *)
-	PROCEDURE ReadUINT8(cInfo: CInfoPtr; VAR int:INTEGER):BOOLEAN;
+	PROCEDURE ReadUINT8(VAR int:INTEGER):BOOLEAN;
 	VAR
 		char:CHAR;
 	BEGIN
@@ -572,7 +539,7 @@ VAR
 	END ReadUINT8;
 
 	(* Lesen eines unsigned LONGINT vom InputFile, 2 Byte  *)
-	PROCEDURE ReadUINT16(cInfo: CInfoPtr; VAR long:LONGINT):BOOLEAN;
+	PROCEDURE ReadUINT16(VAR long:LONGINT):BOOLEAN;
 	VAR
 		int1,int0: INTEGER;
 		ch: CHAR;
@@ -593,7 +560,7 @@ VAR
 	END ByteSplit;
 
 	(* Lesen des SOI-Markers vom InputFile: Start der Graphik*)
-	PROCEDURE getSOI(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getSOI():BOOLEAN;
 	VAR
 		i:INTEGER;
 	BEGIN
@@ -622,27 +589,27 @@ VAR
 	END getSOI;
 
 	(* Lesen eines SOF-Markers vom InputFile: Definition der Bilddaten*)
-	PROCEDURE getSOF(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getSOF():BOOLEAN;
 	VAR
 		c,ci:INTEGER;
 		length:INTEGER;
 	BEGIN
 		length := SHORT(cInfo.reader.Net16());
 		cInfo.reader.RawSInt(cInfo.dataPrecision);
-		IF ~ReadUINT16(cInfo,cInfo.imageHeight) THEN RETURN FALSE END;
-		IF ~ReadUINT16(cInfo,cInfo.imageWidth) THEN RETURN FALSE END;
+		IF ~ReadUINT16(cInfo.imageHeight) THEN RETURN FALSE END;
+		IF ~ReadUINT16(cInfo.imageWidth) THEN RETURN FALSE END;
 		cInfo.reader.RawSInt(cInfo.numComponents);
 		DEC(length,8);
 
 		IF cInfo.marker.sawSOF THEN
-			ErrMsg(cInfo, "SOF-block found twice", 2); RETURN FALSE
+			ErrMsg( "SOF-block found twice", 2); RETURN FALSE
 		END;
 
 		IF (cInfo.imageHeight <=0)
 			OR (cInfo.imageWidth<=0)
 			OR (cInfo.numComponents <=0)
 		THEN
-			ErrMsg(cInfo, "bad size", 3)
+			ErrMsg( "bad size", 3)
 		END;
 
 		IF (cInfo.imageHeight > cInfo.imageWidth) THEN
@@ -652,25 +619,25 @@ VAR
 		END;
 
 		IF cInfo.dataPrecision # BITSINJSAMPLE THEN
-			ErrMsg(cInfo, "data-precision # 8", 5)
+			ErrMsg( "data-precision # 8", 5)
 		END;
 
 		IF cInfo.numComponents > MAXCOMPONENTS THEN
-			ErrMsg(cInfo, "too many components", 6)
+			ErrMsg( "too many components", 6)
 		END;
 
 		IF length # (cInfo.numComponents * 3) THEN
-			ErrMsg(cInfo, "wrong block length", 7)
+			ErrMsg( "wrong block length", 7)
 		END;
 
 		ci:=0;
 		WHILE ci < cInfo.numComponents DO
 			IF cInfo.compInfo[ci] = NIL THEN NEW(cInfo.compInfo[ci]) END;
 			cInfo.compInfo[ci].componentIndex := ci;
-			IF ~ReadUINT8(cInfo,cInfo.compInfo[ci].componentID) THEN RETURN FALSE END;
-			IF ~ReadUINT8(cInfo,c) THEN RETURN FALSE END;
+			IF ~ReadUINT8(cInfo.compInfo[ci].componentID) THEN RETURN FALSE END;
+			IF ~ReadUINT8(c) THEN RETURN FALSE END;
 			ByteSplit(c,cInfo.compInfo[ci].vSampFactor,cInfo.compInfo[ci].hSampFactor);
-			IF ~ReadUINT8(cInfo,cInfo.compInfo[ci].quantTblNo) THEN RETURN FALSE END;
+			IF ~ReadUINT8(cInfo.compInfo[ci].quantTblNo) THEN RETURN FALSE END;
 			INC(ci);
 		END;
 
@@ -680,27 +647,27 @@ VAR
 	END getSOF;
 
 	(* Lesen eines SOS-Markers vom InputFile: Start of Scan*)
-	PROCEDURE getSOS(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getSOS():BOOLEAN;
 	VAR
 		c,ci,cc,ccc:INTEGER;
 		i,n:SHORTINT;
 		length:INTEGER;
 		fehler: BOOLEAN;
-		compptr: JPEGCompInfoPtr;
+		compptr: JPEGCompInfo;
 	BEGIN
 		IF ~cInfo.marker.sawSOF THEN
-			ErrMsg(cInfo, "no SOF block found", 8); RETURN FALSE
+			ErrMsg( "no SOF block found", 8); RETURN FALSE
 		END;
 		length := SHORT(cInfo.reader.Net16());
 		cInfo.reader.RawSInt(n);
 		IF (length # (n*2 + 6)) OR (n<1) OR (n> MAXCOMPSINSCAN) THEN
-			ErrMsg(cInfo, "wrong data length", 9); RETURN FALSE
+			ErrMsg( "wrong data length", 9); RETURN FALSE
 		END;
 		cInfo.compsInScan:=n;
 		i:=0;
 		WHILE i<n DO
-			IF ~ReadUINT8(cInfo,cc) THEN RETURN FALSE END;
-			IF ~ReadUINT8(cInfo,c) THEN RETURN FALSE END;
+			IF ~ReadUINT8(cc) THEN RETURN FALSE END;
+			IF ~ReadUINT8(c) THEN RETURN FALSE END;
 			fehler := TRUE;
 
 			ci:=0;
@@ -712,19 +679,19 @@ VAR
 				INC(ci);
 			END;
 			IF fehler THEN
-				ErrMsg(cInfo,"wrong ComponentID", 10); RETURN FALSE
+				ErrMsg("wrong ComponentID", 10); RETURN FALSE
 			END;
 			cInfo.curCompInfo[i]:= compptr;
 			ByteSplit(c,compptr.acTblNo,compptr.dcTblNo);
 			INC(i);
 		END;
 
-		IF ~ReadUINT8(cInfo,c) OR ~ReadUINT8(cInfo,cc) OR ~ReadUINT8(cInfo,ccc)
+		IF ~ReadUINT8(c) OR ~ReadUINT8(cc) OR ~ReadUINT8(ccc)
 		THEN
 			RETURN FALSE
 		END;
 		IF (c # 0) OR (cc # DCTSIZE2 -1) OR (ccc # 0) THEN
-			ErrMsg(cInfo,"JWRN not sequential", 11); RETURN FALSE
+			ErrMsg("JWRN not sequential", 11); RETURN FALSE
 		END;
 		cInfo.marker.nextRestartNum:=0;
 
@@ -732,7 +699,7 @@ VAR
 	END getSOS;
 
 	(* Lesen eines App0-Markers vom InputFile: Block fuer JFIF Kennung *)
-	PROCEDURE getApp0(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getApp0():BOOLEAN;
 	VAR
 		b : ARRAY 5 OF CHAR;
 		length,buffp,version,help:INTEGER;
@@ -743,17 +710,17 @@ VAR
 			FOR buffp := 0 TO 4 DO
 				cInfo.reader.Char(b[buffp]);
 			END;
-			IF ~ReadUINT8(cInfo,version) THEN RETURN FALSE END;
-			IF ~ReadUINT8(cInfo,help) THEN RETURN FALSE END;
+			IF ~ReadUINT8(version) THEN RETURN FALSE END;
+			IF ~ReadUINT8(help) THEN RETURN FALSE END;
 			DEC(length,12);
 			IF (b[0] = 4AX) & (b[1] = 46X) & (b[2] = 49X) &  (b[3] = 46X) & (b[4] = 0X) THEN
 				IF version # 1 THEN
-					ErrMsg(cInfo,"wrong JFIF version", 12); RETURN FALSE
+					ErrMsg("wrong JFIF version", 12); RETURN FALSE
 				END;
 				cInfo.sawJFIFMarker:=TRUE;
-				IF ~ReadUINT8(cInfo,cInfo.densityUnit) THEN RETURN FALSE END;
-				IF ~ReadUINT16(cInfo,cInfo.XDensity) THEN RETURN FALSE END;
-				IF ~ReadUINT16(cInfo,cInfo.YDensity) THEN RETURN FALSE END;
+				IF ~ReadUINT8(cInfo.densityUnit) THEN RETURN FALSE END;
+				IF ~ReadUINT16(cInfo.XDensity) THEN RETURN FALSE END;
+				IF ~ReadUINT16(cInfo.YDensity) THEN RETURN FALSE END;
 			END;
 		END;
 		IF length > 0 THEN cInfo.reader.SkipBytes(length); END;
@@ -761,7 +728,7 @@ VAR
 	END getApp0;
 
 	(* Lesen eines App14-Markers vom InputFile: Adobe Marker *)
-	PROCEDURE getApp14(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getApp14():BOOLEAN;
 	VAR
 		b : ARRAY 5 OF CHAR;
 		length,dummy,buffp :INTEGER;
@@ -776,15 +743,15 @@ VAR
 			dummy := SHORT(cInfo.reader.Net16());
 			dummy := SHORT(cInfo.reader.Net16());
 			dummy := SHORT(cInfo.reader.Net16());
-			IF ~ReadUINT8(cInfo,cInfo.AdobeTransform) THEN RETURN FALSE END;
+			IF ~ReadUINT8(cInfo.AdobeTransform) THEN RETURN FALSE END;
 			DEC(length,12);
 			IF (b[0] = 41X) & (b[1] = 64X) & (b[2] = 6FX) &  (b[3] = 62X) & (b[4] = 65X) THEN
 				cInfo.sawAdobeMarker:=TRUE;
 			ELSE
-				ErrMsg(cInfo, "bad Adobe marker", 13); RETURN FALSE
+				ErrMsg( "bad Adobe marker", 13); RETURN FALSE
 			END;
 		ELSE
-			ErrMsg(cInfo,"bad Adobe marker", 14); RETURN FALSE
+			ErrMsg("bad Adobe marker", 14); RETURN FALSE
 		END;
 		IF length > 0 THEN cInfo.reader.SkipBytes(length); END;
 
@@ -792,7 +759,7 @@ VAR
 	END getApp14;
 
 	(* Lesen eines DAC-Markers vom InputFile: Block fuer Arithmetik Kodierung *)
-	PROCEDURE getDAC(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getDAC():BOOLEAN;
 	VAR
 		index,help1,help2: SHORTINT;
 		length,val :INTEGER;
@@ -802,11 +769,11 @@ VAR
 
 		WHILE length > 0 DO
 			cInfo.reader.RawSInt(index);
-			IF ~ReadUINT8(cInfo,val) THEN RETURN FALSE END;
+			IF ~ReadUINT8(val) THEN RETURN FALSE END;
 			DEC(length,2);
 
 			IF (index < 0) OR (index >= (2*NUMARITHTBLS)) THEN
-				ErrMsg(cInfo, "bad DAC index", 15); RETURN FALSE
+				ErrMsg( "bad DAC index", 15); RETURN FALSE
 			END;
 
 			IF index >= NUMARITHTBLS THEN
@@ -816,7 +783,7 @@ VAR
 				cInfo.arithDcL[index]:=help1;
 				cInfo.arithDcU[index]:=help2;
 				IF cInfo.arithDcL[index] > cInfo.arithDcU[index] THEN
-					ErrMsg(cInfo, "bad DAC value", 16); RETURN FALSE
+					ErrMsg( "bad DAC value", 16); RETURN FALSE
 				END;
 			END;
 		END;
@@ -825,32 +792,32 @@ VAR
 	END getDAC;
 
 	(* Lesen eines DHT-Markers vom InputFile: Block fuer Huffman Kodierung *)
-	PROCEDURE getDHT(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getDHT():BOOLEAN;
 	VAR
 		bits: ARRAY 17 OF INTEGER;
 		huffVal: ARRAY 256 OF INTEGER;
 		length,i,index,count :INTEGER;
-		htblptr: JHuffTblPtr;
+		htblptr: JHuffTbl;
 	BEGIN
 		length := SHORT(cInfo.reader.Net16());
 		DEC(length,2);
 
 		WHILE length > 0 DO
-			IF ~ReadUINT8(cInfo,index) THEN RETURN FALSE END;
+			IF ~ReadUINT8(index) THEN RETURN FALSE END;
 			bits[0] :=0;
 			count:=0;
 			FOR i:=1 TO 16 DO
-				IF ~ReadUINT8(cInfo,bits[i]) THEN RETURN FALSE END;
+				IF ~ReadUINT8(bits[i]) THEN RETURN FALSE END;
 				INC(count,bits[i]);
 			END;
 			DEC(length,17);
 
 			IF (count > 256) OR (count > length) THEN
-				ErrMsg(cInfo, "bad DHT sum", 17);  RETURN FALSE
+				ErrMsg( "bad DHT sum", 17);  RETURN FALSE
 			END;
 
 			FOR i:=0 TO count -1 DO
-				IF ~ReadUINT8(cInfo,huffVal[i]) THEN RETURN FALSE END;
+				IF ~ReadUINT8(huffVal[i]) THEN RETURN FALSE END;
 			END;
 			DEC(length,count);
 
@@ -864,7 +831,7 @@ VAR
 			END;
 
 			IF (index < 0) OR (index >= NUMHUFFTBLS) THEN
-				ErrMsg(cInfo, "bad DHT index", 18);  RETURN FALSE
+				ErrMsg( "bad DHT index", 18);  RETURN FALSE
 			END;
 
 			FOR i:=0 TO 16 DO htblptr.bits[i]:=bits[i] END;
@@ -875,9 +842,9 @@ VAR
 	END getDHT;
 
 	(* Lesen eines DQT-Markers vom InputFile: Definition der Quantisierungstabellen *)
-	PROCEDURE getDQT(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getDQT():BOOLEAN;
 	VAR
-		quantptr: JQuantTblPtr;
+		quantptr: JQuantTbl;
 		length,i,n,tmp :INTEGER;
 		prec,index :SHORTINT;
 	BEGIN
@@ -885,7 +852,7 @@ VAR
 		DEC(length,2);
 
 		WHILE length > 0 DO
-			IF ~ReadUINT8(cInfo,n) THEN RETURN FALSE END;
+			IF ~ReadUINT8(n) THEN RETURN FALSE END;
 			ByteSplit(n,index,prec);
 
 			IF cInfo.quantTbl[index] = NIL THEN NEW(cInfo.quantTbl[index]) END;
@@ -893,9 +860,9 @@ VAR
 
 			FOR i:=0 TO DCTSIZE2 - 1 DO
 				IF prec # 0 THEN
-					IF ~ReadUINT16(cInfo,quantptr.quantVal[i]) THEN RETURN FALSE END;
+					IF ~ReadUINT16(quantptr.quantVal[i]) THEN RETURN FALSE END;
 				ELSE
-					IF ~ReadUINT8(cInfo,tmp) THEN RETURN FALSE END;
+					IF ~ReadUINT8(tmp) THEN RETURN FALSE END;
 					quantptr.quantVal[i]:=tmp;
 				END;
 			END;
@@ -908,38 +875,37 @@ VAR
 	END getDQT;
 
 	(* Lesen eines DRI-Markers vom InputFile: Definition des Restart Intervalls *)
-	PROCEDURE getDRI(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE getDRI():BOOLEAN;
 	VAR
 		length :INTEGER;
 	BEGIN
 		length := SHORT(cInfo.reader.Net16());
 		IF length # 4 THEN
-			ErrMsg(cInfo, "wrong DRI length", 19);  RETURN FALSE
+			ErrMsg( "wrong DRI length", 19);  RETURN FALSE
 		END;
 
-		IF ~ReadUINT16(cInfo,cInfo.restartInterval) THEN RETURN FALSE END;
+		IF ~ReadUINT16(cInfo.restartInterval) THEN RETURN FALSE END;
 
 		RETURN TRUE;
 	END getDRI;
 
 	(* Ueberlesen eines Markers vom InputFile *)
-	PROCEDURE skipVariable(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE skipVariable():BOOLEAN;
 	VAR
 		t: LONGINT;
 	BEGIN
 		t := cInfo.reader.Net16();
-		(*ASSERT(t > 0);*)
-		IF t<=0 THEN RETURN FALSE
+		(*ASSERT(t > 0);*) (* original version, but leading to hard trap in some cases. A corrupted file should not shoot down a program *)
+		IF t<=0 THEN RETURN FALSE (*HALT(200) *) (*HERE, SOMETHING IS MAYBE suboptimal. is t<2 better ?What is the minimum value of t?*)
 		ELSE
-			(* length := SHORT(t); *)
-			DEC(t,2);
+			DEC(t,2); (* can this benegative ????*)
 			cInfo.reader.SkipBytes(t);
 			RETURN TRUE;
 		END;
 	END skipVariable;
 
 	(* Auf InputFile bis zum naechsten Marker weiterlesen *)
-	PROCEDURE nextMarker(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE nextMarker():BOOLEAN;
 	VAR
 		c:CHAR;
 	BEGIN
@@ -970,7 +936,7 @@ VAR
 	END nextMarker;
 
 	(* Erster Marker vom InputFile lesen *)
-	PROCEDURE firstMarker(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE firstMarker():BOOLEAN;
 	VAR
 		c,c2:CHAR;
 	BEGIN
@@ -987,103 +953,103 @@ VAR
 
 	(* Steuerung des Lesens der Marker bis und mit SOS-Block oder EOI wenn keine
 		Bilddaten vorhanden sind *)
-	PROCEDURE readMarkers(cInfo: CInfoPtr):INTEGER;
+	PROCEDURE readMarkers():INTEGER;
 	BEGIN
 
 
 		LOOP
 			IF cInfo.unreadMarker = 0X THEN
 				IF ~cInfo.marker.sawSOI THEN
-					IF ~ firstMarker(cInfo) THEN
+					IF ~ firstMarker() THEN
 						RETURN JPEGSUSPENDED
 					END;
 				ELSE
-					IF ~ nextMarker(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~ nextMarker() THEN RETURN JPEGSUSPENDED END;
 				END;
 			END;
 			CASE cInfo.unreadMarker OF
 				MSOI:
-					IF ~getSOI(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~getSOI() THEN RETURN JPEGSUSPENDED END;
 			| MSOF0:
 					cInfo.arithCode:=FALSE;
-					IF ~getSOF(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~getSOF() THEN RETURN JPEGSUSPENDED END;
 			| MSOF1:
 					cInfo.arithCode:=FALSE;
-					IF ~getSOF(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~getSOF() THEN RETURN JPEGSUSPENDED END;
 			| MSOF9:
 					cInfo.arithCode:=TRUE;
-					IF ~getSOF(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~getSOF() THEN RETURN JPEGSUSPENDED END;
 			| MSOF2:
-					ErrMsg(cInfo,"Progressive Huffmann not supported", 20)
+					ErrMsg("Progressive Huffmann not supported", 20)
 			| MSOF3:
-					ErrMsg(cInfo,"Lossless Huffmann not supported", 21)
+					ErrMsg("Lossless Huffmann not supported", 21)
 			| MSOF5:
-					ErrMsg(cInfo,"Differential seq. Huffmann not supported", 22)
+					ErrMsg("Differential seq. Huffmann not supported", 22)
 			| MSOF6:
-					ErrMsg(cInfo,"Differential prog. Huffmann not supported", 23)
+					ErrMsg("Differential prog. Huffmann not supported", 23)
 			| MSOF7:
-					ErrMsg(cInfo,"Differential loss. Huffmann not supported", 24)
+					ErrMsg("Differential loss. Huffmann not supported", 24)
 			| MJPG:
-					ErrMsg(cInfo,"MJPG not supported", 25)
+					ErrMsg("MJPG not supported", 25)
 			| MSOF10:
-					ErrMsg(cInfo,"Progressive arithmetic not supported", 26)
+					ErrMsg("Progressive arithmetic not supported", 26)
 			| MSOF11:
-					ErrMsg(cInfo,"Lossless arithmetic not supported", 27)
+					ErrMsg("Lossless arithmetic not supported", 27)
 			| MSOF13:
-					ErrMsg(cInfo,"Differential seq. arithmetic not supported", 28)
+					ErrMsg("Differential seq. arithmetic not supported", 28)
 			| MSOF14:
-					ErrMsg(cInfo,"Differential prog. arithmetic not supported", 29)
+					ErrMsg("Differential prog. arithmetic not supported", 29)
 			| MSOF15:
-					ErrMsg(cInfo,"Differential loss. arithmetic not supported", 30)
+					ErrMsg("Differential loss. arithmetic not supported", 30)
 			| MSOS:
-					IF ~getSOS(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~getSOS() THEN RETURN JPEGSUSPENDED END;
 					cInfo.unreadMarker := 0X;
 					RETURN JPEGHEADEROK;
 			| MEOI:
 					cInfo.unreadMarker := 0X;
 					RETURN JPEGHEADERTABLESONLY;
 			| MDAC:
-					IF ~getDAC(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~getDAC() THEN RETURN JPEGSUSPENDED END
 			| MDHT:
-					IF ~getDHT(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~getDHT() THEN RETURN JPEGSUSPENDED END
 			| MDQT:
-					IF ~getDQT(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~getDQT() THEN RETURN JPEGSUSPENDED END
 			| MDRI:
-					IF ~getDRI(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~getDRI() THEN RETURN JPEGSUSPENDED END
 			| MAPP0:
-					IF ~getApp0(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~getApp0() THEN RETURN JPEGSUSPENDED END
 			| MAPP1:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END
 			| MAPP2:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END
 			| MAPP3:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END
 			| MAPP4:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END
 			| MAPP5:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END
 			| MAPP6:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MAPP7:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MAPP8:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MAPP9:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MAPP10:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MAPP11:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MAPP12:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MAPP13:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MAPP14:
-					IF ~getApp14(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~getApp14() THEN RETURN JPEGSUSPENDED END;
 			| MAPP15:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			| MCOM:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END
 			| MRST0:
 					(* nothing to do *)
 			| MRST1:
@@ -1103,10 +1069,10 @@ VAR
 			| MTEM:
 					(* nothing to do *)
 			| MDNL:
-					IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
+					IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
 			ELSE
-				IF ~skipVariable(cInfo) THEN RETURN JPEGSUSPENDED END;
-				(* ErrMsg(cInfo,"unknown marker", 31) *)
+				IF ~skipVariable() THEN RETURN JPEGSUSPENDED END;
+				(* ErrMsg("unknown marker", 31) *)
 			END;
 
 			cInfo.unreadMarker:=0X;
@@ -1119,7 +1085,7 @@ VAR
 
 	(* Lesen eines Restart Markers vom InputFile, falls der Marker nicht vorhanden ist,
 		werden Rettungsmassnahmen zur weiteren Dekodierung getroffen *)
-	PROCEDURE resyncToRestart(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE resyncToRestart():BOOLEAN;
 	VAR
 		marker:CHAR;
 		desired,action:INTEGER;
@@ -1144,7 +1110,7 @@ VAR
 					cInfo.unreadMarker := 0X;
 					RETURN TRUE;
 			|   2:
-					IF ~nextMarker(cInfo) THEN RETURN FALSE END;
+					IF ~nextMarker() THEN RETURN FALSE END;
 					marker := cInfo.unreadMarker;
 			|   3:
 					RETURN TRUE;
@@ -1154,16 +1120,16 @@ VAR
 
 	(* Lesen eines Restart Markers vom InputFile, falls der Marker nicht vorhanden ist,
 		werden Rettungsmassnahmen zur weiteren Dekodierung getroffen *)
-	PROCEDURE readRestartMarker(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE readRestartMarker():BOOLEAN;
 	BEGIN
 		IF cInfo.unreadMarker = 0X THEN
-			IF ~nextMarker(cInfo) THEN RETURN FALSE END;
+			IF ~nextMarker() THEN RETURN FALSE END;
 		END;
 
 		IF ORD(cInfo.unreadMarker) = (208 + cInfo.marker.nextRestartNum) THEN
 			cInfo.unreadMarker:= 0X;
 		ELSE
-			IF ~resyncToRestart(cInfo) THEN RETURN FALSE END;
+			IF ~resyncToRestart() THEN RETURN FALSE END;
 		END;
 
 		cInfo.marker.nextRestartNum := (cInfo.marker.nextRestartNum + 1) MOD 8;
@@ -1172,7 +1138,7 @@ VAR
 	END readRestartMarker;
 
 	(* Marker Reader fuer neues InputFile initialisieren *)
-	PROCEDURE resetMarkerReader(cInfo: CInfoPtr);
+	PROCEDURE resetMarkerReader();
 	BEGIN
 		cInfo.unreadMarker := 0X;
 		cInfo.marker.sawSOI := FALSE;
@@ -1181,7 +1147,7 @@ VAR
 	END resetMarkerReader;
 
 	(* Marker Reader anlegen und initialisieren *)
-	PROCEDURE jinitMarkerReader(cInfo: CInfoPtr);
+	PROCEDURE jinitMarkerReader();
 	BEGIN
 		IF cInfo.marker = NIL THEN NEW(cInfo.marker) END;
 		cInfo.unreadMarker := 0X;
@@ -1198,7 +1164,7 @@ VAR
 	(* Dieser Abschnitt beinhaltet Prozeduren fuer die Huffman Entropy Dekodierung *)
 
 	(* Berechnen der "Derived Values" fuer die Huffman Tabelle *)
-	PROCEDURE fixHuffTbl(cInfo: CInfoPtr;htbl: JHuffTblPtr; pdtbl: DDerivedTblPtr);
+	PROCEDURE fixHuffTbl(htbl: JHuffTbl; pdtbl: DDerivedTbl);
 	VAR
 		p,i,I,si,k: INTEGER;
 		lookbits: LONGINT;
@@ -1266,20 +1232,20 @@ VAR
 	END fixHuffTbl;
 
 	(* Initialisierung der Huffman Dekodierung fuer einen Scan Durchgang *)
-	PROCEDURE startPassHuff(cInfo: CInfoPtr);
+	PROCEDURE startPassHuff();
 	VAR
 		ci,dctbl,actbl: INTEGER;
-		compptr: JPEGCompInfoPtr;
+		compptr: JPEGCompInfo;
 	BEGIN
 		FOR ci:= 0 TO cInfo.compsInScan - 1 DO
 			compptr := cInfo.curCompInfo[ci];
 			dctbl := compptr.dcTblNo;
 			actbl := compptr.acTblNo;
 			IF (dctbl < 0) OR (dctbl >= NUMHUFFTBLS) OR (cInfo.dcHuffTbl[dctbl] = NIL) THEN
-				ErrMsg(cInfo,"bad Huffman dc table", 32);  RETURN
+				ErrMsg("bad Huffman dc table", 32);  RETURN
 			END;
 			IF (actbl < 0) OR (actbl >= NUMHUFFTBLS) OR (cInfo.acHuffTbl[actbl] = NIL) THEN
-				ErrMsg(cInfo,"bad Huffman ac table", 33);  RETURN
+				ErrMsg("bad Huffman ac table", 33);  RETURN
 			END;
 			IF cInfo.entropy.dcDerivedTbls[dctbl] = NIL THEN
 				NEW(cInfo.entropy.dcDerivedTbls[dctbl]);
@@ -1287,8 +1253,8 @@ VAR
 			IF cInfo.entropy.acDerivedTbls[actbl] = NIL THEN
 				NEW(cInfo.entropy.acDerivedTbls[actbl]);
 			END;
-			fixHuffTbl(cInfo,cInfo.dcHuffTbl[dctbl],cInfo.entropy.dcDerivedTbls[dctbl]);
-			fixHuffTbl(cInfo,cInfo.acHuffTbl[actbl],cInfo.entropy.acDerivedTbls[actbl]);
+			fixHuffTbl(cInfo.dcHuffTbl[dctbl],cInfo.entropy.dcDerivedTbls[dctbl]);
+			fixHuffTbl(cInfo.acHuffTbl[actbl],cInfo.entropy.acDerivedTbls[actbl]);
 			cInfo.entropy.saved.lastDcVal[ci] := 0;
 		END;
 		cInfo.entropy.saved.bitsLeft := 0;
@@ -1297,7 +1263,7 @@ VAR
 	END startPassHuff;
 
 	(* Fuellen des BitBuffers(max. 4Bytes) mit Bytes vom InputFile *)
-	PROCEDURE fillBitBuffer(state: WorkingStatePtr; nbits: INTEGER):BOOLEAN;
+	PROCEDURE fillBitBuffer(state: WorkingState; nbits: INTEGER):BOOLEAN;
 	VAR
 		getBuffer: LONGINT;
 		bitsLeft,x,i,k: INTEGER;
@@ -1359,7 +1325,7 @@ VAR
 	END fillBitBuffer;
 
 	(* Ueberpruefen ob noch nbits im BitBuffer vorhanden sind *)
-	PROCEDURE checkBitBuffer(state: WorkingStatePtr; nbits: INTEGER):BOOLEAN;
+	PROCEDURE checkBitBuffer(state: WorkingState; nbits: INTEGER):BOOLEAN;
 	BEGIN
 		IF state.cur.bitsLeft < nbits THEN
 			IF ~fillBitBuffer(state,nbits) THEN RETURN FALSE END;
@@ -1368,7 +1334,7 @@ VAR
 	END checkBitBuffer;
 
 	(* nbits vom BitBuffer lesen und als INTEGER zurueckgeben *)
-	PROCEDURE getBits(state: WorkingStatePtr; nbits: INTEGER):INTEGER;
+	PROCEDURE getBits(state: WorkingState; nbits: INTEGER):INTEGER;
 	VAR
 		i: INTEGER;
 		helpSet,helpSet2: LONGINT;
@@ -1382,7 +1348,7 @@ VAR
 	END getBits;
 
 	(* nbits vom BitBuffer vorauslesen, Bits aber nicht vom BitBuffer loeschen *)
-	PROCEDURE peekBits(state: WorkingStatePtr; nbits: INTEGER):INTEGER;
+	PROCEDURE peekBits(state: WorkingState; nbits: INTEGER):INTEGER;
 	VAR
 		i: INTEGER;
 		helpSet,helpSet2: LONGINT;
@@ -1395,13 +1361,13 @@ VAR
 	END peekBits;
 
 	(* nbits im BitBuffer ueberlesen *)
-	PROCEDURE dropBits(state: WorkingStatePtr; nbits: INTEGER);
+	PROCEDURE dropBits(state: WorkingState; nbits: INTEGER);
 	BEGIN
 		DEC(state.cur.bitsLeft,nbits);
 	END dropBits;
 
 	(* Dekodierung des Huffman Codes falls der Code laenger als 8 Bit ist, ca. 5% der Faelle *)
-	PROCEDURE slowDECODE(state: WorkingStatePtr; htbl: DDerivedTblPtr; minBits:INTEGER):INTEGER;
+	PROCEDURE slowDECODE(state: WorkingState; htbl: DDerivedTbl; minBits:INTEGER):INTEGER;
 	VAR
 		i: INTEGER;
 		code: LONGINT;
@@ -1425,7 +1391,7 @@ VAR
 	END slowDECODE;
 
 	(* Schnelle Dekodierung des Huffman Codes, falls Code <= 8Bits ist *)
-	PROCEDURE huffDECODE(VAR result: INTEGER; state: WorkingStatePtr; htbl: DDerivedTblPtr):BOOLEAN;
+	PROCEDURE huffDECODE(VAR result: INTEGER; state: WorkingState; htbl: DDerivedTbl):BOOLEAN;
 	VAR
 		nb,look: INTEGER;
 	BEGIN
@@ -1456,14 +1422,14 @@ VAR
 	END huffEXTEND;
 
 	(* Lesen eines Restart Markers und darauffolgend erneutes Starten der Huffman Dekodierung *)
-	PROCEDURE processRestart(cInfo: CInfoPtr):BOOLEAN;
+	PROCEDURE processRestart():BOOLEAN;
 	VAR
 		ci: INTEGER;
 	BEGIN
 		INC(cInfo.marker.discardedBytes,(cInfo.entropy.saved.bitsLeft DIV 8));
 		cInfo.entropy.saved.bitsLeft := 0;
 
-		IF ~readRestartMarker(cInfo) THEN RETURN FALSE END;
+		IF ~readRestartMarker() THEN RETURN FALSE END;
 		FOR ci := 0 TO cInfo.compsInScan - 1 DO
 			cInfo.entropy.saved.lastDcVal[ci] := 0;
 		END;
@@ -1476,21 +1442,21 @@ VAR
 		Dekodierung und Rueckgabe eines MCU Blocks von Huffman-Komprimierten Koeffizienten.
 		Die Koeffizienten werden von ZIG-ZAG Anordnung in natuerliche Anordnung ueberfuehrt.
 		Die Koeffizienten werden aber nicht dequantisiert *)
-	PROCEDURE decodeMCU(cInfo: CInfoPtr; VAR MCUData: ARRAY OF JBlock):BOOLEAN;
+	PROCEDURE decodeMCU( VAR MCUData: ARRAY OF JBlock):BOOLEAN;
 	VAR
 		s,k,r,blkn,ci: INTEGER;
 		i:INTEGER; helpSet,helpSet2: SET;
 		set: LONGINT;
 		block: JBlock;
-		state: WorkingStatePtr;
-		dctbl,actbl: DDerivedTblPtr;
-		compptr: JPEGCompInfoPtr;
+		state: WorkingState;
+		dctbl,actbl: DDerivedTbl;
+		compptr: JPEGCompInfo;
 	BEGIN
 		set := 15;
 		NEW(state);
 		IF cInfo.restartInterval # 0 THEN
 			IF cInfo.entropy.restartsToGo = 0 THEN
-				IF ~processRestart(cInfo) THEN RETURN FALSE END;
+				IF ~processRestart() THEN RETURN FALSE END;
 			END;
 		END;
 		state.unreadMarker := cInfo.unreadMarker;
@@ -1581,7 +1547,7 @@ VAR
 	END decodeMCU;
 
 	(* Initialisierung des Huffman Dekodierungs Prozesses *)
-	PROCEDURE jinitHuffDecoder(cInfo: CInfoPtr);
+	PROCEDURE jinitHuffDecoder();
 	VAR
 		i: INTEGER;
 	BEGIN
@@ -1600,11 +1566,11 @@ VAR
 		Die Koeffizieten werden dequanitfiziert und darauf die IDCT angewendet *)
 
 	(* Initialisierung fuer einen Input-Scan *)
-	PROCEDURE startInputPassIDCT(cInfo: CInfoPtr);
+	PROCEDURE startInputPassIDCT();
 	VAR
 		ci,qtblno,i,row,col : INTEGER;
-		compptr: JPEGCompInfoPtr;
-		qtbl: JQuantTblPtr;
+		compptr: JPEGCompInfo;
+		qtbl: JQuantTbl;
 		sf: ARRAY DCTSIZE OF REAL;
 		si: ARRAY DCTSIZE2 OF INTEGER;
 		sfrow:REAL;
@@ -1646,7 +1612,7 @@ VAR
 			compptr := cInfo.curCompInfo[ci];
 			qtblno := compptr.quantTblNo;
 			IF (qtblno < 0) OR (qtblno >= NUMQUANTTBLS) OR (cInfo.quantTbl[qtblno] = NIL) THEN
-				ErrMsg(cInfo,"bad qtbl index", 34); RETURN
+				ErrMsg("bad qtbl index", 34); RETURN
 			END;
 			qtbl := cInfo.quantTbl[qtblno];
 			IF cInfo.selectIDCT = Scale THEN
@@ -1681,25 +1647,25 @@ VAR
 	END startInputPassIDCT;
 
 	(* weitere Ueberpruefungen zur Durchfuehrung der IDCT *)
-	PROCEDURE startOutputPassIDCT(cInfo: CInfoPtr);
+	PROCEDURE startOutputPassIDCT();
 	VAR
 		ci: INTEGER;
-		compptr: JPEGCompInfoPtr;
+		compptr: JPEGCompInfo;
 	BEGIN
 		FOR ci:=0 TO cInfo.numComponents - 1 DO
 			compptr := cInfo.compInfo[ci];
 			IF compptr.componentNeeded THEN
 				IF cInfo.selectIDCT = Float THEN
 					IF compptr.dctTable = NIL THEN
-						ErrMsg(cInfo,"component not found", 35)
+						ErrMsg("component not found", 35)
 					END;
 				ELSIF cInfo.selectIDCT = Integer THEN
 					IF compptr.dctITable = NIL THEN
-						ErrMsg(cInfo,"component not found", 36)
+						ErrMsg("component not found", 36)
 					END;
 				ELSIF cInfo.selectIDCT = Scale THEN
 					IF compptr.dctSTable = NIL THEN
-						ErrMsg(cInfo,"component not found", 37)
+						ErrMsg("component not found", 37)
 					END;
 				END;
 			END;
@@ -1719,7 +1685,7 @@ VAR
 	(* Schnelle INTEGER Implementation der IDCT
 		Dieser Algorithmus basiert auf dem Algorithmus von Arai, Agui und Nakajima fuer
 		skalierte DCT *)
-	PROCEDURE jpegIDCTIFast(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE jpegIDCTIFast( compptr: JPEGCompInfo;
 											coefBlock: JBlock; outputBuf: JSampArray;
 											outputRow, outputCol: LONGINT);
 	VAR
@@ -1727,7 +1693,7 @@ VAR
 		z5,z10,z11,z12,z13,dcval1: LONGINT;
 		dcval: CHAR;
 		inptr: JBlock;
-		quantptr,wsptr: DCTITablePtr;
+		quantptr,wsptr: DCTITable;
 		inws,ctr: INTEGER;
 		outptr: JSampRow;
 	BEGIN
@@ -1875,13 +1841,13 @@ VAR
 	END jpegIDCTIFast;
 
 	(* Scaling um Faktor 2, Integer IDCT Methode *)
-	PROCEDURE jpegIDCT4X4(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE jpegIDCT4X4( compptr: JPEGCompInfo;
 											coefBlock: JBlock; outputBuf: JSampArray;
 											outputRow, outputCol: LONGINT);
 	VAR
 		tmp0,tmp2,tmp10,tmp12,z1,z2,z3,z4,dcval: LONGINT;
 		inptr: JBlock;
-		quantptr,wsptr: DCTSTablePtr;
+		quantptr,wsptr: DCTSTable;
 		inws,hctr,ctr: INTEGER;
 		outptr: JSampRow;
 		dcChar: CHAR;
@@ -1979,13 +1945,13 @@ VAR
 	END jpegIDCT4X4;
 
 	(* Scaling um Faktor 4, Integer IDCT Methode *)
-	PROCEDURE jpegIDCT2X2(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE jpegIDCT2X2( compptr: JPEGCompInfo;
 											coefBlock: JBlock; outputBuf: JSampArray;
 											outputRow, outputCol: LONGINT);
 	VAR
 		tmp0,tmp10,z1,dcval: LONGINT;
 		inptr: JBlock;
-		quantptr,wsptr: DCTSTablePtr;
+		quantptr,wsptr: DCTSTable;
 		inws,hctr,ctr: INTEGER;
 		outptr: JSampRow;
 		dcChar: CHAR;
@@ -2054,11 +2020,11 @@ VAR
 	END jpegIDCT2X2;
 
 	(* Scaling um Faktor 8, Integer IDCT Methode *)
-	PROCEDURE jpegIDCT1X1(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE jpegIDCT1X1( compptr: JPEGCompInfo;
 											coefBlock: JBlock; outputBuf: JSampArray;
 											outputRow, outputCol: LONGINT);
 	VAR
-		quantptr: DCTSTablePtr;
+		quantptr: DCTSTable;
 		dcval: LONGINT;
 	BEGIN
 		quantptr := compptr.dctSTable;
@@ -2069,14 +2035,14 @@ VAR
 
 
 	(* Floating-Point Implementation des Algorithmus von Arai, Agui und Nakajima *)
-	PROCEDURE jpegIDCTFloat(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE jpegIDCTFloat( compptr: JPEGCompInfo;
 											coefBlock: JBlock; outputBuf: JSampArray;
 											outputRow, outputCol: LONGINT);
 	VAR
 		tmp0,tmp1,tmp2,tmp3,tmp4,tmp5,tmp6,tmp7,tmp10,tmp11,tmp12,tmp13: REAL;
 		z5,z10,z11,z12,z13,dcval: REAL;
 		inptr: JBlock;
-		quantptr,wsptr: DCTTablePtr;
+		quantptr,wsptr: DCTTable;
 		inws,ctr: INTEGER;
 		outptr: JSampRow;
 	BEGIN
@@ -2206,9 +2172,9 @@ VAR
 	END jpegIDCTFloat;
 
 	(* Auswahl der IDCT Methode pro Farbkomponenten *)
-	PROCEDURE jinitIDCT(cInfo: CInfoPtr);
+	PROCEDURE jinitIDCT();
 	VAR
-		compptr: JPEGCompInfoPtr;
+		compptr: JPEGCompInfo;
 		ci: INTEGER;
 	BEGIN
 		FOR ci := 0 TO cInfo.numComponents - 1 DO
@@ -2216,13 +2182,13 @@ VAR
 			compptr.dctTable := NIL;
 			compptr.dctITable := NIL;
 			compptr.dctSTable := NIL;
-			IF cInfo.selectIDCT = Float THEN compptr.IDCTMethod := jpegIDCTFloat; (*es*) KernelLog	.String("Float"); KernelLog.Ln;
-			ELSIF cInfo.selectIDCT = Integer THEN compptr.IDCTMethod := jpegIDCTIFast; (*es* KernelLog.String("IFast"); KernelLog.Ln; **)
+			IF cInfo.selectIDCT = Float THEN compptr.IDCTMethod := jpegIDCTFloat; (*es*) IF logger#NIL THEN logger.String("Float"); logger.Ln; logger.Update END;
+			ELSIF cInfo.selectIDCT = Integer THEN compptr.IDCTMethod := jpegIDCTIFast; (*es* logger.String("IFast"); logger.Ln; **)
 			ELSIF cInfo.selectIDCT = Scale THEN
-				IF compptr.DCTScaledSize = 1 THEN compptr.IDCTMethod := jpegIDCT1X1; (*es*) KernelLog.String("1X1"); KernelLog.Ln;
-				ELSIF compptr.DCTScaledSize = 2 THEN compptr.IDCTMethod := jpegIDCT2X2; (*es*) KernelLog.String("2X2"); KernelLog.Ln;
-				ELSIF compptr.DCTScaledSize = 4 THEN compptr.IDCTMethod := jpegIDCT4X4; (*es*) KernelLog.String("4X4"); KernelLog.Ln;
-				ELSE compptr.IDCTMethod := jpegIDCTIFast; (*es*) KernelLog.String("IFast2"); KernelLog.Ln;
+				IF compptr.DCTScaledSize = 1 THEN compptr.IDCTMethod := jpegIDCT1X1; (*es*) IF logger#NIL THEN logger.String("1X1"); logger.Ln; logger.Update END;
+				ELSIF compptr.DCTScaledSize = 2 THEN compptr.IDCTMethod := jpegIDCT2X2; (*es*) IF logger#NIL THEN logger.String("2X2"); logger.Ln; logger.Update END;
+				ELSIF compptr.DCTScaledSize = 4 THEN compptr.IDCTMethod := jpegIDCT4X4; (*es*) IF logger#NIL THEN logger.String("4X4"); logger.Ln;  logger.Update END;
+				ELSE compptr.IDCTMethod := jpegIDCTIFast; (*es*) IF logger#NIL THEN logger.String("IFast2"); logger.Ln; logger.Update END;
 				END;
 			END;
 		END;
@@ -2252,12 +2218,12 @@ VAR
 	JSampRow = POINTER TO ARRAY (JPEGMAXDIMENSION * RGBPIXELSIZE) OF CHAR;
 	(*es: 1024 nach JFIF bis 65500 x 3 *)
 **)
-	PROCEDURE decompressData(cInfo: CInfoPtr; outputBuf: JSampImage):BOOLEAN;
+	PROCEDURE decompressData( outputBuf: JSampImage):BOOLEAN;
 	VAR
 		MCUColNum, lastMCUCol, lastMCURow, startCol, outputCol, outputRow: LONGINT;
 		blkn, ci, i, j, xindex, yindex, usefulWidth: INTEGER;
-		compptr: JPEGCompInfoPtr;
-		outputPtr: JSampArray;
+		compptr: JPEGCompInfo;
+		output: JSampArray;
 		jblock: JBlock;
 		components: SHORTINT;
 	BEGIN
@@ -2275,7 +2241,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 					jblock[i]:=0;
 				END;
 			END;
-			IF ~decodeMCU(cInfo,cInfo.coef.MCUBuffer) THEN
+			IF ~decodeMCU(cInfo.coef.MCUBuffer) THEN
 				cInfo.coef.MCUColNum := MCUColNum;
 				RETURN FALSE;
 			END;
@@ -2293,15 +2259,15 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 						usefulWidth := compptr.lastColWidth;
 					END;
 (*es* IF MCUColNum = cInfo.coef.MCUColNum THEN KernelLog.String("usefulWidth"); KernelLog.Int(usefulWidth, 5); KernelLog.Ln; END; **)
-					outputPtr := outputBuf.comp[ci]; (* set to a component buffer *)
+					output := outputBuf.comp[ci]; (* set to a component buffer *)
 					outputRow := 0;
 					startCol := MCUColNum * compptr.MCUSampleWidth;
 					FOR yindex := 0 TO compptr.MCUHeight - 1 DO
 						IF (cInfo.coef.MCURowNum < lastMCURow) OR (yindex < compptr.lastRowHeight) THEN
 							outputCol := startCol;
 							FOR xindex:=0 TO usefulWidth - 1 DO
-								compptr.IDCTMethod(cInfo, compptr,cInfo.coef.MCUBuffer[blkn + xindex],
-															outputPtr,outputRow,outputCol);
+								compptr.IDCTMethod( compptr,cInfo.coef.MCUBuffer[blkn + xindex],
+															output,outputRow,outputCol);
 								outputCol:=outputCol + compptr.DCTScaledSize;
 							END;
 						END;
@@ -2317,30 +2283,30 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		RETURN TRUE;
 	END decompressData;
 
-	PROCEDURE startPassCoef(cInfo: CInfoPtr; passMode:SHORTINT);
+	PROCEDURE startPassCoef( passMode:SHORTINT);
 	BEGIN
 		cInfo.coef.MCUColNum := 0;
 		cInfo.coef.MCURowNum := 0;
 
 		IF passMode = JBUFPASSTHRU THEN
 			IF cInfo.coef.wholeImage THEN
-				ErrMsg(cInfo,"wholeimage mode not implemented", 38)
+				ErrMsg("wholeimage mode not implemented", 38)
 			END;
 			cInfo.coef.decompressData := decompressData;
 		ELSE
-			ErrMsg(cInfo,"unknown mode", 39)
+			ErrMsg("unknown mode", 39)
 		END;
 	END startPassCoef;
 
 	(* Initialisierung des Koeffizienten Dekodierungs Kontrollers *)
-	PROCEDURE jinitDCoefController(cInfo: CInfoPtr; needFullBuffer:BOOLEAN);
+	PROCEDURE jinitDCoefController( needFullBuffer:BOOLEAN);
 	VAR
 		i: INTEGER;
 	BEGIN
 		NEW(cInfo.coef);
 		cInfo.coef.wholeImage := FALSE;
 		IF needFullBuffer THEN
-			ErrMsg(cInfo,"fullbuffer mode not implemented", 40)
+			ErrMsg("fullbuffer mode not implemented", 40)
 		ELSE
 			FOR i:=0 TO MAXBLOCKSINMCU -1 DO
 				NEW(cInfo.coef.MCUBuffer[i]);
@@ -2414,7 +2380,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		R := Y + 1.40200 * Cr;	G:= Y - 0.344414 * Cb - 0.71414 * Cr;	B:=Y + 1.77200 * Cb
 		Dabei sind Cb und Cr die gelesenen Werte minus CENTERJSAMPLE.
 		Speziell: Hier wird Floating-Point Arithmetik vermieden und mit Tabellen gearbeitet *)
-	PROCEDURE yccRGBConvert(cInfo: CInfoPtr; inputBuf:ARRAY OF JSampArray;
+	PROCEDURE yccRGBConvert( inputBuf:ARRAY OF JSampArray;
 												inputRow: LONGINT; outputBuf: JSampArray;
 												outRowCtr: LONGINT; numRows:INTEGER);
 	VAR
@@ -2467,7 +2433,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	(* Keine Umwandlung der Farbdarstellung notwenig, nur Kopieren der Werte
 		Die Darstellung der Farbkomponenten wechselt von separaten Zeilen pro Farbkomponent
 		zur gemischten Darstellung *)
-	PROCEDURE nullConvert(cInfo: CInfoPtr; inputBuf:ARRAY OF JSampArray;
+	PROCEDURE nullConvert( inputBuf:ARRAY OF JSampArray;
 												inputRow: LONGINT; outputBuf: JSampArray;
 												outRowCtr: LONGINT; numRows:INTEGER);
 	VAR
@@ -2493,7 +2459,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END nullConvert;
 
 	(* Konvertierung fuer Graustufen Darstellung: reines Kopieren der Daten *)
-	PROCEDURE grayscaleConvert(cInfo: CInfoPtr; inputBuf:ARRAY OF JSampArray;
+	PROCEDURE grayscaleConvert( inputBuf:ARRAY OF JSampArray;
 												inputRow: LONGINT; outputBuf: JSampArray;
 												outRowCtr: LONGINT; numRows:INTEGER);
 	BEGIN
@@ -2501,14 +2467,14 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END grayscaleConvert;
 
 	(* Initialisierung des Farbkonverters *)
-	PROCEDURE jinitColorDeconverter(cInfo: CInfoPtr);
+	PROCEDURE jinitColorDeconverter();
 	VAR
 		ci: INTEGER;
 	BEGIN
 		NEW(cInfo.cconvert);
 		IF (cInfo.jpegColorSpace # JCSRGB) & (cInfo.jpegColorSpace # JCSYCBCR) &
 			(cInfo.jpegColorSpace # JCSGRAYSCALE)  THEN
-			ErrMsg(cInfo,"bad jpegColorSpace", 41); RETURN
+			ErrMsg("bad jpegColorSpace", 41); RETURN
 		END;
 		IF cInfo.outColorSpace = JCSGRAYSCALE THEN
 			cInfo.outColorComponents := 1;
@@ -2518,7 +2484,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 					cInfo.compInfo[ci].componentNeeded := FALSE;
 				END;
 			ELSE
-				ErrMsg(cInfo,"bad jpegColorSpace", 42);  RETURN
+				ErrMsg("bad jpegColorSpace", 42);  RETURN
 			END;
 		ELSIF cInfo.outColorSpace = JCSRGB THEN
 			cInfo.outColorComponents := RGBPIXELSIZE;
@@ -2527,10 +2493,10 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 			ELSIF (cInfo.jpegColorSpace = JCSRGB) & (RGBPIXELSIZE = 3) THEN
 				cInfo.cconvert.colorConvert := nullConvert;
 			ELSE
-				ErrMsg(cInfo,"bad jpegColorSpace", 43);  RETURN
+				ErrMsg("bad jpegColorSpace", 43);  RETURN
 			END;
 		ELSE
-			ErrMsg(cInfo,"bad jpegColorSpace", 44);  RETURN
+			ErrMsg("bad jpegColorSpace", 44);  RETURN
 		END;
 		cInfo.outputComponents := 1;
 	END jinitColorDeconverter;
@@ -2544,7 +2510,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		jedem Farbkomponenten *)
 
 	(* Initialisierung fuer einen Upsampling Pass *)
-	PROCEDURE startPassUpsample(cInfo: CInfoPtr);
+	PROCEDURE startPassUpsample();
 	BEGIN
 		cInfo.upsample.nextRowOut := cInfo.maxVSampFactor;
 		cInfo.upsample.rowsToGo := cInfo.outputHeight;
@@ -2553,12 +2519,12 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	(* Control Routine fuers Upsampling. Jeder Farbkomponent wird separat behandelt.
 		Upsampling wird mit einer rowGroup aufsmal  gemacht, danach wird je Zeile die
 		Farbkonvertierung durchgefuehrt. *)
-	PROCEDURE sepUpsample(cInfo: CInfoPtr; inputBuf: JSampImage; VAR inRowGroupCtr: LONGINT;
+	PROCEDURE sepUpsample( inputBuf: JSampImage; VAR inRowGroupCtr: LONGINT;
 											inRowGroupsAvail: LONGINT; outputBuf: JSampArray;
 											VAR outRowCtr: LONGINT; outRowsAvail: LONGINT);
 	VAR
 		ci: INTEGER;
-		compptr: JPEGCompInfoPtr;
+		compptr: JPEGCompInfo;
 		numRows,inRowCtr: LONGINT;
 	BEGIN
 		IF cInfo.upsample.nextRowOut >= cInfo.maxVSampFactor THEN
@@ -2566,7 +2532,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 				compptr := cInfo.compInfo[ci];
 				inRowCtr := inRowGroupCtr * cInfo.upsample.rowGroupHeight[ci];
 				IF cInfo.upsample.colorBuf[ci] = NIL THEN NEW(cInfo.upsample.colorBuf[ci]) END;
-				cInfo.upsample.methods[ci](cInfo,compptr,inputBuf.comp[ci],inRowCtr,
+				cInfo.upsample.methods[ci](compptr,inputBuf.comp[ci],inRowCtr,
 													cInfo.upsample.colorBuf[ci]);
 			END;
 			cInfo.upsample.nextRowOut := 0;
@@ -2579,7 +2545,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		DEC(outRowsAvail,outRowCtr);
 		IF numRows > outRowsAvail THEN numRows := outRowsAvail END;
 
-		cInfo.cconvert.colorConvert(cInfo,cInfo.upsample.colorBuf,cInfo.upsample.nextRowOut,
+		cInfo.cconvert.colorConvert(cInfo.upsample.colorBuf,cInfo.upsample.nextRowOut,
 											outputBuf,outRowCtr,SHORT(numRows));
 
 		INC(outRowCtr,numRows);
@@ -2589,7 +2555,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END sepUpsample;
 
 	(* Kein Upsampling notwendig. Output Zeiger zeigen auf Werte der Input Zeiger *)
-	PROCEDURE fullsizeUpsample(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE fullsizeUpsample( compptr: JPEGCompInfo;
 											 inputData: JSampArray; inRowCtr: LONGINT;
 											 outputData: JSampArray);
 	VAR
@@ -2605,7 +2571,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 
 	(* nicht erwuenschte Farbkomponenten werden ausgelassen und keine Farbkonvertierung
 		durchgefuehrt *)
-	PROCEDURE noopUpsample(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE noopUpsample( compptr: JPEGCompInfo;
 											 inputData: JSampArray; inRowCtr: LONGINT;
 											 outputData: JSampArray);
 	VAR
@@ -2619,7 +2585,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END noopUpsample;
 
 	(* Behandelt seltene Scaling Raten wie 3:1 oder 4:1 *)
-	PROCEDURE intUpsample(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE intUpsample( compptr: JPEGCompInfo;
 											 inputData: JSampArray; inRowCtr: LONGINT;
 											 outputData: JSampArray);
 	VAR
@@ -2654,7 +2620,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END intUpsample;
 
 	(* Schnelle Behandlung von 2:1 Horizontal und 1:1 Vertikal *)
-	PROCEDURE h2v1Upsample(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE h2v1Upsample( compptr: JPEGCompInfo;
 											 inputData: JSampArray; inRowCtr: LONGINT;
 											 outputData: JSampArray);
 	VAR
@@ -2682,7 +2648,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END h2v1Upsample;
 
 	(* Schnelle Behandlung von 2:1 Horizontal und 2:1 Vertikal *)
-	PROCEDURE h2v2Upsample(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE h2v2Upsample( compptr: JPEGCompInfo;
 											 inputData: JSampArray; inRowCtr: LONGINT;
 											 outputData: JSampArray);
 	VAR
@@ -2714,7 +2680,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 
 	(* Fancy Behandlung von 2:1 Horizontal und 1:1 Vertikal. Hier wird eine lineare Interpolation
 		zwischen Pixelzentren angewendet -> "Triangle Filter" *)
-	PROCEDURE h2v1FancyUpsample(cInfo: CInfoPtr; compptr: JPEGCompInfoPtr;
+	PROCEDURE h2v1FancyUpsample( compptr: JPEGCompInfo;
 											 inputData: JSampArray; inRowCtr: LONGINT;
 											 outputData: JSampArray);
 	VAR
@@ -2761,17 +2727,17 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END h2v1FancyUpsample;
 
 	(* Initialisierung des Upsampling Vorganges *)
-	PROCEDURE jinitUpsampler(cInfo: CInfoPtr);
+	PROCEDURE jinitUpsampler();
 	VAR
 		i,ci,hInGroup,vInGroup,hOutGroup,vOutGroup: INTEGER;
 		needBuffer,doFancy: BOOLEAN;
-		compptr: JPEGCompInfoPtr;
+		compptr: JPEGCompInfo;
 	BEGIN
 		NEW(cInfo.upsample);
 		cInfo.upsample.upsample := sepUpsample;
 		cInfo.upsample.needContextRows := FALSE;
 		IF cInfo.CCIR601Sampling THEN
-			ErrMsg(cInfo,"CCIR601 not implemented", 45);  RETURN
+			ErrMsg("CCIR601 not implemented", 45);  RETURN
 		END;
 		doFancy := (cInfo.doFancyUpsampling) & (cInfo.minDCTScaledSize > 1);
 
@@ -2805,7 +2771,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 				cInfo.upsample.hExpand[ci] := hOutGroup DIV hInGroup;
 				cInfo.upsample.vExpand[ci] := vOutGroup DIV vInGroup;
 			ELSE
-				ErrMsg(cInfo,"Upsampling not possible", 46);  RETURN
+				ErrMsg("Upsampling not possible", 46);  RETURN
 			END;
 
 			IF needBuffer THEN
@@ -2825,7 +2791,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		gleichmaessig verteilten Farbwerten aufgebaut. Optional ist ein Floyd-Steinberg Dithering. *)
 
 	(* Teilt die vorhandenen Farben auf die einzelnen Farbkomponenten auf *)
-	PROCEDURE selectNColors(cInfo: CInfoPtr; VAR Ncolors: ARRAY OF INTEGER):INTEGER;
+	PROCEDURE selectNColors( VAR Ncolors: ARRAY OF INTEGER):INTEGER;
 	VAR
 		nc,maxColors,totalColors,iroot,i,j : LONGINT;
 		temp: LONGINT;
@@ -2848,7 +2814,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 
 		DEC(iroot);
 		IF iroot < 2 THEN
-			ErrMsg(cInfo,"not enough color values", 47);  RETURN 0
+			ErrMsg("not enough color values", 47);  RETURN 0
 		END;
 
 		totalColors := 1;
@@ -2876,12 +2842,12 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END largestInputValue;
 
 	(* Erstellen der Farbtabelle und der Farbindex-Tabelle fuer die spaetere Quantifizierung der Farben *)
-	PROCEDURE createColormap(cInfo: CInfoPtr);
+	PROCEDURE createColormap();
 	VAR
 		totalColors, i, j, k, nci, blksize, blkdist, ptr, val: LONGINT;
 		Ncolors: ARRAY MAXQCOMPS OF INTEGER;
 	BEGIN
-		totalColors := selectNColors(cInfo,Ncolors);
+		totalColors := selectNColors(Ncolors);
 		NEW(cInfo.colorMap);
 		blkdist := totalColors;
 		(*es* KernelLog.String("createColormap"); KernelLog.Int(cInfo.outColorComponents, 3); KernelLog.Ln; **)
@@ -2914,101 +2880,15 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		cInfo.actualNumberOfColors := SHORT(totalColors);
 	END createColormap;
 
-	(* Farb Quantifizierung bei n-Farbkomponenten ohne Dithering *)
-	PROCEDURE colorQuantize(cInfo: CInfoPtr; inputBuf: JSampArray; outputBuf: JSampArray;  outRowCtr:INTEGER; numRows: INTEGER);
-	VAR
-		pixcode,nc,ci,row,inOffset,outOffset: INTEGER;
-		ptrin,ptrout: JSampRow;
-		col,width: LONGINT;
-	BEGIN
-		nc := cInfo.outColorComponents;
-		width := cInfo.outputWidth;
-		FOR row := 0 TO numRows -1 DO
-			ptrin := inputBuf.row[row];
-			inOffset := 0;
-			ptrout := outputBuf.row[row + outRowCtr];
-			outOffset := 0;
-			FOR col := 0 TO width -1 DO
-				pixcode := 0;
-				FOR ci := 0 TO nc -1 DO
-					pixcode := pixcode + cInfo.cquant.colorIndex[ci][ORD(ptrin[inOffset])];
-					INC(inOffset);
-				END;
-				ptrout[outOffset] := CHR(pixcode);
-				INC(outOffset);
-			END;
-		END;
-	END colorQuantize;
-
-	(* Schnelle Farb Quantifizierung bei 3-Farbkomponenten ohne Dithering *)
-	PROCEDURE colorQuantize3(cInfo: CInfoPtr; inputBuf: JSampArray; outputBuf: JSampArray; outRowCtr:INTEGER; numRows: INTEGER);
-	VAR
-		pixcode,row,inOffset,outOffset: INTEGER;
-		ptrin,ptrout: JSampRow;
-		col,width: LONGINT;
-	BEGIN
-		width := cInfo.outputWidth;
-		FOR row := 0 TO numRows -1 DO
-			ptrin := inputBuf.row[row];
-			inOffset := 0;
-			ptrout := outputBuf.row[row + outRowCtr];
-			outOffset := 0;
-			FOR col := 0 TO width -1 DO
-				pixcode := cInfo.cquant.colorIndex[0][ORD(ptrin[inOffset])];
-				INC(inOffset);
-				pixcode := pixcode + cInfo.cquant.colorIndex[1][ORD(ptrin[inOffset])];
-				INC(inOffset);
-				pixcode := pixcode + cInfo.cquant.colorIndex[2][ORD(ptrin[inOffset])];
-				INC(inOffset);
-				ptrout[outOffset] := CHR(pixcode);
-				INC(outOffset);
-			END;
-		END;
-	END colorQuantize3;
-
-	PROCEDURE Copy(VAR src,dest: ARRAY OF CHAR);
-	VAR l1,l2: LONGINT;
-	BEGIN
-		l1 := LEN(src);
-		l2 := LEN(dest);
-		IF l2 < l1 THEN l1 := l2 END;
-		SYSTEM.MOVE(ADDRESSOF(src[0]),ADDRESSOF(dest[0]),l1);
-	END Copy;
-
-
-	(* Farbquantifizierung bei n Farbkomponenten mit Floyd-Steinberg Dithering *)
-	PROCEDURE quantizeFSDither(cInfo: CInfoPtr; inputBuf: JSampArray; outputBuf: JSampArray; outRowCtr:INTEGER; numRows: INTEGER);
-	VAR
-		nc, row: INTEGER; bmpRows0: JSampRowList; (**)
-		width: LONGINT; l1,l2: LONGINT;
-	BEGIN
-	    (*es* KernelLog.String("quantizeFSDither");
-	    	KernelLog.Int(cInfo.outputWidth, 5); KernelLog.Int(outRowCtr, 5); KernelLog.Int(numRows, 5); KernelLog.Ln; **)
-		nc := cInfo.outColorComponents;
-		width := cInfo.outputWidth;
-		FOR row := 0 TO numRows - 1 DO
-			(*es*)
-			IF (cInfo.oldbmpRows#NIL) &
-								(LEN(cInfo.oldbmpRows.row)=cInfo.JPEGMAXDIMENSION*RGBPIXELSIZE) THEN	(*ph: reuse*)
-				bmpRows0:= cInfo.oldbmpRows; cInfo.oldbmpRows:= cInfo.oldbmpRows.next
-			ELSE
-				NEW(bmpRows0);  NEW(bmpRows0.row, cInfo.JPEGMAXDIMENSION*RGBPIXELSIZE);
-			END;
-			bmpRows0.next := cInfo.bmpRows;  		(*re-use ! or eliminate FS Dithering anyway !*)
-
-			Copy(inputBuf.row[row]^,bmpRows0.row^); (*! do not use builtin COPY as this is stringcopy, fof 091117 !*)
-			cInfo.bmpRows := bmpRows0;  (**)
-			cInfo.cquant.onOddRow := ~cInfo.cquant.onOddRow;
-		END;
-	END quantizeFSDither;
 
 	(* Initialisierung fuer die 1-Pass Quantifizierung *)
-	PROCEDURE jinit1PassQuantizer(cInfo: CInfoPtr);
+	PROCEDURE jinit1PassQuantizer();
 	VAR
 		i: INTEGER;
 		j : LONGINT;
 	BEGIN
 		NEW(cInfo.cquant);
+		NEW(cInfo.cquant.colorIndex);
 		IF cInfo.ditherMode = DitherFS THEN
 			cInfo.cquant.colorQuantize := quantizeFSDither;
 			cInfo.cquant.onOddRow := FALSE;
@@ -3025,9 +2905,9 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 				cInfo.cquant.colorQuantize := colorQuantize;
 			END;
 		ELSE
-			ErrMsg(cInfo,"unknown dither mode", 48);  RETURN
+			ErrMsg("unknown dither mode", 48);  RETURN
 		END;
-		createColormap(cInfo);
+		createColormap();
 	END jinit1PassQuantizer;
 
 	(* *****        Ende Prozeduren von JPEGQuant1      ***** *)
@@ -3041,7 +2921,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		3. Farbquantifizierung *)
 
 	(* Steuerung des Post-Kontrollers *)
-	PROCEDURE postProcess1Pass(cInfo: CInfoPtr; inputBuf: JSampImage; VAR inRowGroupCtr,
+	PROCEDURE postProcess1Pass( inputBuf: JSampImage; VAR inRowGroupCtr,
 											 inRowGroupsAvail: LONGINT; outputBuf: JSampArray;
 											 VAR outRowCtr: LONGINT;VAR outRowsAvail: LONGINT);
 	VAR
@@ -3050,23 +2930,23 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		maxRows := outRowsAvail - outRowCtr;
 		IF maxRows > cInfo.post.stripHeight THEN maxRows := cInfo.post.stripHeight END;
 		numRows := 0;
-		cInfo.upsample.upsample(cInfo, inputBuf, inRowGroupCtr, inRowGroupsAvail, cInfo.post.buffer, numRows, maxRows);
-		cInfo.cquant.colorQuantize(cInfo,cInfo.post.buffer,outputBuf,SHORT(outRowCtr),SHORT(numRows));
+		cInfo.upsample.upsample( inputBuf, inRowGroupCtr, inRowGroupsAvail, cInfo.post.buffer, numRows, maxRows);
+		cInfo.cquant.colorQuantize(cInfo.post.buffer,outputBuf,SHORT(outRowCtr),SHORT(numRows));
 		INC(outRowCtr,numRows);
 	END postProcess1Pass;
 
 	(* Initialisierung fuer einen Pass des Post-Kontrollers *)
-	PROCEDURE startPassPost(cInfo: CInfoPtr; passMode:SHORTINT);
+	PROCEDURE startPassPost( passMode:SHORTINT);
 	BEGIN
 		IF passMode = JBUFPASSTHRU THEN
 			cInfo.post.postProcessData := postProcess1Pass;
 		ELSE
-			ErrMsg(cInfo,"unknown pass mode", 49)
+			ErrMsg("unknown pass mode", 49)
 		END;
 	END startPassPost;
 
 	(* Initialisierung des Post-Kontrollers *)
-	PROCEDURE jinitDPostController(cInfo: CInfoPtr; needFullBuffer:BOOLEAN);
+	PROCEDURE jinitDPostController( needFullBuffer:BOOLEAN);
 	VAR
 		i: INTEGER;
 	BEGIN
@@ -3074,7 +2954,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		cInfo.post.wholeImage := FALSE;
 		cInfo.post.stripHeight := cInfo.maxVSampFactor;
 		IF needFullBuffer THEN
-			ErrMsg(cInfo,"2-pass mode not implemented", 50)
+			ErrMsg("2-pass mode not implemented", 50)
 		ELSE
 			NEW(cInfo.post.buffer);
 			FOR i:=0 TO cInfo.maxVSampFactor -1 DO
@@ -3092,18 +2972,18 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		Von hier aus werden beide aufgerufen *)
 
 	(* Steuerung des Main-Kontrollers *)
-	PROCEDURE processDataSimpleMain(cInfo: CInfoPtr; outputBuf: JSampArray;
+	PROCEDURE processDataSimpleMain( outputBuf: JSampArray;
 													VAR outRowCtr:LONGINT; outRowsAvail:LONGINT);
 	VAR
 		rowGroupsAvail: LONGINT;
 	BEGIN
 		IF ~cInfo.main.bufferFull THEN
-			IF ~cInfo.coef.decompressData(cInfo,cInfo.main.buffer) THEN RETURN END;
+			IF ~cInfo.coef.decompressData(cInfo.main.buffer) THEN RETURN END;
 			cInfo.main.bufferFull := TRUE;
 		END;
 
 		rowGroupsAvail := cInfo.minDCTScaledSize;
-		cInfo.post.postProcessData(cInfo,cInfo.main.buffer,cInfo.main.rowGroupCtr,rowGroupsAvail,
+		cInfo.post.postProcessData(cInfo.main.buffer,cInfo.main.rowGroupCtr,rowGroupsAvail,
 											outputBuf,outRowCtr,outRowsAvail);
 		IF cInfo.main.rowGroupCtr >= rowGroupsAvail THEN
 			cInfo.main.bufferFull := FALSE;
@@ -3112,7 +2992,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END processDataSimpleMain;
 
 	(* Intitialisierung des Main-Contollers fuer einen Pass *)
-	PROCEDURE startPassMain(cInfo: CInfoPtr; passMode:SHORTINT);
+	PROCEDURE startPassMain( passMode:SHORTINT);
 	BEGIN
 		cInfo.main.numChunks := cInfo.outputHeight;
 
@@ -3120,33 +3000,33 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 			JBUFPASSTHRU:
 				IF cInfo.rawDataOut THEN RETURN END;
 				IF cInfo.upsample.needContextRows THEN
-					ErrMsg(cInfo,"context rows not implemented", 51)
+					ErrMsg("context rows not implemented", 51)
 				ELSE
 					cInfo.main.processData := processDataSimpleMain;
 				END;
 				cInfo.main.bufferFull:= FALSE;
 				cInfo.main.rowGroupCtr := 0;
 		ELSE
-			ErrMsg(cInfo,"unknown buffer mode", 52)
+			ErrMsg("unknown buffer mode", 52)
 		END;
 	END startPassMain;
 
 	(* Generelle Initialisierung des Main-Kontrollers *)
-	PROCEDURE jinitDMainController(cInfo: CInfoPtr; needFullBuffer:BOOLEAN);
+	PROCEDURE jinitDMainController( needFullBuffer:BOOLEAN);
 	VAR
 		ci,rgroup,ngroups : INTEGER;
-		compptr : JPEGCompInfoPtr;
+		compptr : JPEGCompInfo;
 		t, i : LONGINT;
 	BEGIN
 		NEW(cInfo.main);
 		IF needFullBuffer THEN
-			ErrMsg(cInfo,"full buffer mode not implemented", 53);  RETURN
+			ErrMsg("full buffer mode not implemented", 53);  RETURN
 		END;
 
 		IF cInfo.rawDataOut THEN RETURN END;
 
 		IF cInfo.upsample.needContextRows THEN
-			ErrMsg(cInfo,"context rows not implemented", 54);  RETURN
+			ErrMsg("context rows not implemented", 54);  RETURN
 		ELSE
 			ngroups := cInfo.minDCTScaledSize;
 		END;
@@ -3177,10 +3057,10 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 
 	(* Hier werden wichtige Berechnungen ueber Hoehe, Breite etc des Bildes gemacht, ebenfalls
 		wird die Anzahl der Output-Farbkomponenten bestimmt *)
-	PROCEDURE jpegCalcOutputDim(cInfo: CInfoPtr);
+	PROCEDURE jpegCalcOutputDim();
 	VAR
 		ci,ssize: INTEGER;
-		compptr: JPEGCompInfoPtr;
+		compptr: JPEGCompInfo;
 	BEGIN
 		IF cInfo.numComponents = 1 THEN
 			cInfo.compInfo[0].hSampFactor := 1;
@@ -3193,7 +3073,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 			IF (compptr.hSampFactor <= 0) OR (compptr.hSampFactor > MAXSAMPFACTOR)
 			OR (compptr.vSampFactor <= 0) OR (compptr.vSampFactor > MAXSAMPFACTOR)
 			THEN
-				ErrMsg(cInfo,"bad sample factor", 55); RETURN
+				ErrMsg("bad sample factor", 55); RETURN
 			END;
 			IF cInfo.maxHSampFactor < compptr.hSampFactor THEN
 				cInfo.maxHSampFactor :=compptr.hSampFactor
@@ -3271,10 +3151,10 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END jpegCalcOutputDim;
 
 	(* Initialisierungen pro JPEG Scan *)
-	PROCEDURE perScanSetup(cInfo:CInfoPtr);
+	PROCEDURE perScanSetup();
 	VAR
 		ci,mcublks,tmp: INTEGER;
-		compptr: JPEGCompInfoPtr;
+		compptr: JPEGCompInfo;
 	BEGIN
 		IF cInfo.compsInScan = 1 THEN
 			compptr := cInfo.curCompInfo[0];
@@ -3291,7 +3171,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 			cInfo.MCUMembership[0] := 0;
 		ELSE
 			IF (cInfo.compsInScan <= 0) OR (cInfo.compsInScan > MAXCOMPSINSCAN) THEN
-				ErrMsg(cInfo,"bad scan number", 56);  RETURN
+				ErrMsg("bad scan number", 56);  RETURN
 			END;
 			cInfo.MCUsPerRow :=
 					roundUp(cInfo.imageWidth, LONG(cInfo.maxHSampFactor) * DCTSIZE);
@@ -3316,7 +3196,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 				mcublks := compptr.MCUBlocks;
 
 				IF (cInfo.blocksInMCU + mcublks) > MAXBLOCKSINMCU THEN
-					ErrMsg(cInfo,"bad MCU size", 57);  RETURN
+					ErrMsg("bad MCU size", 57);  RETURN
 				END;
 
 				WHILE (mcublks) > 0 DO
@@ -3329,7 +3209,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END perScanSetup;
 
 	(* Auswahl der zu benuetzenden Dekomprimierungsroutinen *)
-	PROCEDURE masterSelection(cInfo: CInfoPtr);
+	PROCEDURE masterSelection();
 	BEGIN
 
 		cInfo.master.eoiProcessed:= FALSE;
@@ -3339,53 +3219,53 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 			cInfo.master.passType := MainPass;
 			cInfo.master.totalPasses := 1;
 		ELSE
-			ErrMsg(cInfo,"multiscan not implemented", 58); RETURN
+			ErrMsg("multiscan not implemented", 58); RETURN
 		END;
 
 		cInfo.master.usingMergedUpsample := FALSE; (* Merge nicht implementiert *)
 
 		IF cInfo.rawDataOut THEN
-			ErrMsg(cInfo,"rawdataout not implemented", 59); RETURN
+			ErrMsg("rawdataout not implemented", 59); RETURN
 		END;
 
 		cInfo.twoPassQuantize := FALSE;
-		jinit1PassQuantizer(cInfo);
-		jinitColorDeconverter(cInfo);
-		jinitUpsampler(cInfo);
-		jinitDPostController(cInfo,cInfo.master.needPostPass);
-		jinitIDCT(cInfo);
+		jinit1PassQuantizer();
+		jinitColorDeconverter();
+		jinitUpsampler();
+		jinitDPostController(cInfo.master.needPostPass);
+		jinitIDCT();
 		IF cInfo.arithCode THEN
-			ErrMsg(cInfo,"arith. decoding not implemented", 60); RETURN
+			ErrMsg("arith. decoding not implemented", 60); RETURN
 		ELSE
-			jinitHuffDecoder(cInfo);
+			jinitHuffDecoder();
 		END;
-		jinitDCoefController(cInfo,(cInfo.master.passType = PrereadPass));
-		jinitDMainController(cInfo,FALSE);
+		jinitDCoefController((cInfo.master.passType = PrereadPass));
+		jinitDMainController(FALSE);
 	END masterSelection;
 
 	(* weitere Initialisierungen pro Pass *)
-	PROCEDURE prepareForPass(cInfo: CInfoPtr);
+	PROCEDURE prepareForPass();
 	BEGIN
 		CASE cInfo.master.passType OF
 			MainPass:
-				perScanSetup(cInfo);
+				perScanSetup();
 				cInfo.master.isLastPass := ~ cInfo.master.needPostPass;
 				IF (~ cInfo.rawDataOut) THEN
-					startPassUpsample(cInfo);
-					startPassPost(cInfo, JBUFPASSTHRU)
+					startPassUpsample();
+					startPassPost( JBUFPASSTHRU)
 				END;
-				startInputPassIDCT(cInfo);
-				startOutputPassIDCT(cInfo);
-				startPassHuff(cInfo);
-				startPassCoef(cInfo, JBUFPASSTHRU);
-				startPassMain(cInfo, JBUFPASSTHRU);
+				startInputPassIDCT();
+				startOutputPassIDCT();
+				startPassHuff();
+				startPassCoef( JBUFPASSTHRU);
+				startPassMain( JBUFPASSTHRU);
 		ELSE
-			ErrMsg(cInfo,"unknown pass mode", 61)
+			ErrMsg("unknown pass mode", 61)
 		END;
 	END prepareForPass;
 
 	(* Abschliessen des Dekomprimierens *)
-	PROCEDURE finishPass(cInfo: CInfoPtr);
+	PROCEDURE finishPass();
 	BEGIN
 		CASE cInfo.master.passType OF
 			MainPass:
@@ -3395,15 +3275,15 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 				INC(cInfo.master.passNumber);
 				cInfo.master.passType := PostPass;
 		ELSE
-			ErrMsg(cInfo,"unknown pass mode", 62)
+			ErrMsg("unknown pass mode", 62)
 		END;
 	END finishPass;
 
 	(* Initialisierung des MasterKonrollers *)
-	PROCEDURE jinitMasterDecompress(cInfo: CInfoPtr);
+	PROCEDURE jinitMasterDecompress();
 	BEGIN
 		NEW(cInfo.master);
-		masterSelection(cInfo);
+		masterSelection();
 	END jinitMasterDecompress;
 
 	(* *****       Ende Prozeduren von JPEGMaster       ***** *)
@@ -3416,11 +3296,11 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 
 
 	(* Initialisieren des Output Files und der Output Datenstruktur *)
-	PROCEDURE jinitDest(cInfo: CInfoPtr; dest: DestPtr);
+	PROCEDURE jinitDest( dest: Dest);
 	VAR
 		rowWidth: LONGINT;
 	BEGIN
-		jpegCalcOutputDim(cInfo);  IF cInfo.err # 0 THEN RETURN END;
+		jpegCalcOutputDim();  IF cInfo.err # 0 THEN RETURN END;
 		dest.bufferHeight := 1;
 		dest.curOutputRow := 0;
 		rowWidth := cInfo.outputWidth;
@@ -3441,7 +3321,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	(* Dieser Abschnitt uebernimmt die Default Initialisationen des Dekompressions Objektes *)
 
 	(* Initialisieren des Dekompressions Objektes: cInfo *)
-	PROCEDURE jpegCreateDecompress(cInfo: CInfoPtr);
+	PROCEDURE jpegCreateDecompress();
 	VAR
 		i:INTEGER;
 	BEGIN
@@ -3453,12 +3333,12 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 			cInfo.acHuffTbl[i]:=NIL;
 		END;
 		cInfo.marker:=NIL;
-		jinitMarkerReader(cInfo);
+		jinitMarkerReader();
 		cInfo.globalState:= DSTATESTART;
 	END jpegCreateDecompress;
 
 	(* Defaultwerte setzen *)
-	PROCEDURE defaultDecompressParams(cInfo: CInfoPtr);
+	PROCEDURE defaultDecompressParams();
 	VAR
 		cid0,cid1,cid2:INTEGER;
 	BEGIN
@@ -3491,9 +3371,9 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 					END;
 				END;
 				cInfo.outColorSpace := JCSRGB;
-		| 4: ErrMsg(cInfo,"too many components", 63)
+		| 4: ErrMsg("too many components", 63)
 		ELSE
-			ErrMsg(cInfo,"too many components", 64)
+			ErrMsg("too many components", 64)
 		END;
 
 		cInfo.scaleNum:=1;
@@ -3510,53 +3390,53 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END defaultDecompressParams;
 
 	(* Steuerung zum Lesen des InputFile Kopfes *)
-	PROCEDURE jpegReadHeader(cInfo: CInfoPtr);
+	PROCEDURE jpegReadHeader();
 	VAR
 		retcode:INTEGER;
 	BEGIN
 		IF cInfo.globalState = DSTATESTART THEN
-			resetMarkerReader(cInfo);
+			resetMarkerReader();
 			cInfo.globalState := DSTATEINHEADER;
 		ELSIF cInfo.globalState # DSTATEINHEADER THEN
-			ErrMsg(cInfo,"unknown header state", 65);  RETURN
+			ErrMsg("unknown header state", 65);  RETURN
 		END;
 
-		retcode := readMarkers(cInfo);
+		retcode := readMarkers();
 
 		CASE retcode OF
 			JPEGHEADEROK:
-				defaultDecompressParams(cInfo);
+				defaultDecompressParams();
 				cInfo.globalState:= DSTATEREADY;
 		| JPEGHEADERTABLESONLY:
-				ErrMsg(cInfo,"no SOS blocks", 71);
+				ErrMsg("no SOS blocks", 71);
 		| JPEGSUSPENDED:
-				ErrMsg(cInfo,"header block error", 71);
+				ErrMsg("header block error", 71);
 		END;
 	END jpegReadHeader;
 
 	(* Startender Dekomprimierung: Parameter setzen, pruefen ob Bilddaten im InputFile sind *)
-	PROCEDURE jpegStartDecompress(cInfo: CInfoPtr);
+	PROCEDURE jpegStartDecompress();
 	VAR
 		chunkCtr,lastChunkCtr: LONGINT;
 	BEGIN
 		IF cInfo.globalState # DSTATEREADY THEN
-			ErrMsg(cInfo,"bad state", 72);  RETURN
+			ErrMsg("bad state", 72);  RETURN
 		END;
-		jinitMasterDecompress(cInfo);
+		jinitMasterDecompress();
 		IF cInfo.err # 0 THEN RETURN END;
 
 		LOOP
-			prepareForPass(cInfo);
+			prepareForPass();
 			IF cInfo.master.isLastPass THEN EXIT END;
 			chunkCtr:=0;
 			WHILE chunkCtr < cInfo.main.numChunks DO
 				lastChunkCtr := chunkCtr;
-				processDataSimpleMain(cInfo,NIL,chunkCtr,0);
+				processDataSimpleMain(NIL,chunkCtr,0);
 				IF chunkCtr = lastChunkCtr THEN
-					ErrMsg(cInfo,"loop", 72);  RETURN
+					ErrMsg("loop", 72);  RETURN
 				END;
 			END;
-			finishPass(cInfo);
+			finishPass();
 		END; (* Loop *)
 		cInfo.outputScanline := 0;
 		IF cInfo.rawDataOut THEN
@@ -3567,78 +3447,153 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 	END jpegStartDecompress;
 
 	(* maxLines Bildzeilen dekomprimieren und ausgeben *)
-	PROCEDURE jpegReadScanlines(cInfo: CInfoPtr; scanlines: JSampArray; VAR maxLines:LONGINT):LONGINT;
+	PROCEDURE jpegReadScanlines( scanlines: JSampArray; VAR maxLines:LONGINT):LONGINT;
 	VAR
 		rowCtr: LONGINT;
 	BEGIN
 		IF cInfo.globalState # DSTATESCANNING THEN
-			ErrMsg(cInfo,"bad state", 73);  RETURN 0
+			ErrMsg("bad state", 73);  RETURN 0
 		END;
 
 		rowCtr:=0;
-		cInfo.main.processData(cInfo,scanlines,rowCtr,maxLines);
+		cInfo.main.processData(scanlines,rowCtr,maxLines);
 		INC(cInfo.outputScanline,rowCtr);
 
 		RETURN rowCtr;
 	END jpegReadScanlines;
 
 	(* Dekomprimieren beenden *)
-	PROCEDURE jpegFinishDecompress(cInfo: CInfoPtr);
+	PROCEDURE jpegFinishDecompress();
 	BEGIN
 		IF (cInfo.globalState = DSTATESCANNING)  OR (cInfo.globalState = DSTATERAWOK) THEN
 			IF cInfo.outputScanline < cInfo.outputHeight THEN
-				ErrMsg(cInfo,"unexpected end of file", 74);  RETURN
+				ErrMsg("unexpected end of file", 74);  RETURN
 			END;
-			finishPass(cInfo);
+			finishPass();
 			cInfo.globalState := DSTATESTOPPING;
 		ELSIF cInfo.globalState # DSTATESTOPPING THEN
-			ErrMsg(cInfo,"bad state", 74);  RETURN
+			ErrMsg("bad state", 74);  RETURN
 		END;
 
 		IF ~cInfo.master.eoiProcessed THEN
-			CASE readMarkers(cInfo) OF
+			CASE readMarkers() OF
 				JPEGHEADEROK:
-					ErrMsg(cInfo,"EOI expected", 74);
+					ErrMsg("EOI expected", 74);
 			| JPEGHEADERTABLESONLY:
 			| JPEGSUSPENDED:
-				ErrMsg(cInfo,"read error", 74)
+				ErrMsg("read error", 74)
 			END;
 		END;
 	END jpegFinishDecompress;
+	
+			(* Farb Quantifizierung bei n-Farbkomponenten ohne Dithering *)
+	PROCEDURE colorQuantize( inputBuf: JSampArray; outputBuf: JSampArray;  outRowCtr:INTEGER; numRows: INTEGER);
+	VAR
+		pixcode,nc,ci,row,inOffset,outOffset: INTEGER;
+		ptrin,ptrout: JSampRow;
+		col,width: LONGINT;
+	BEGIN
+		nc := cInfo.outColorComponents;
+		width := cInfo.outputWidth;
+		FOR row := 0 TO numRows -1 DO
+			ptrin := inputBuf.row[row];
+			inOffset := 0;
+			ptrout := outputBuf.row[row + outRowCtr];
+			outOffset := 0;
+			FOR col := 0 TO width -1 DO
+				pixcode := 0;
+				FOR ci := 0 TO nc -1 DO
+					pixcode := pixcode + cInfo.cquant.colorIndex[ci][ORD(ptrin[inOffset])];
+					INC(inOffset);
+				END;
+				ptrout[outOffset] := CHR(pixcode);
+				INC(outOffset);
+			END;
+		END;
+	END colorQuantize;
 
-	(* JPEG Hauptprozedur: Files oeffnen, Dekompressions und Outputobjekte generieren, Files schliessen *)
-	(** JPEG.Decode Decode file to pict
-		idct: Integer: use fast integer arithmetics
-				Float: use (slow) Floatingpoint arithmetics
-				Scale: use fast integer arithmetics and scale image by a factor of 2, 4 or 8
-		factor: Scaling-factor for idct = Scale
-		dither: DitherNone: no dithering
-					DitheFS: Floyd Steinberg dithering
-		colorMode: ColorsOld: use current display palette
-							ColorsNew: build a new (orthogonal) palette
-	*)
+	(* Schnelle Farb Quantifizierung bei 3-Farbkomponenten ohne Dithering *)
+	PROCEDURE colorQuantize3( inputBuf: JSampArray; outputBuf: JSampArray; outRowCtr:INTEGER; numRows: INTEGER);
+	VAR
+		pixcode,row,inOffset,outOffset: INTEGER;
+		ptrin,ptrout: JSampRow;
+		col,width: LONGINT;
+	BEGIN
+		width := cInfo.outputWidth;
+		FOR row := 0 TO numRows -1 DO
+			ptrin := inputBuf.row[row];
+			inOffset := 0;
+			ptrout := outputBuf.row[row + outRowCtr];
+			outOffset := 0;
+			FOR col := 0 TO width -1 DO
+				pixcode := cInfo.cquant.colorIndex[0][ORD(ptrin[inOffset])];
+				INC(inOffset);
+				pixcode := pixcode + cInfo.cquant.colorIndex[1][ORD(ptrin[inOffset])];
+				INC(inOffset);
+				pixcode := pixcode + cInfo.cquant.colorIndex[2][ORD(ptrin[inOffset])];
+				INC(inOffset);
+				ptrout[outOffset] := CHR(pixcode);
+				INC(outOffset);
+			END;
+		END;
+	END colorQuantize3;
+
+	PROCEDURE Copy(VAR src,dest: ARRAY OF CHAR);
+	VAR l1,l2: LONGINT;
+	BEGIN
+		l1 := LEN(src);
+		l2 := LEN(dest);
+		IF l2 < l1 THEN l1 := l2 END;
+		SYSTEM.MOVE(ADDRESSOF(src[0]),ADDRESSOF(dest[0]),l1);
+	END Copy;
+
+
+	(* Farbquantifizierung bei n Farbkomponenten mit Floyd-Steinberg Dithering *)
+	PROCEDURE quantizeFSDither(inputBuf: JSampArray; outputBuf: JSampArray; outRowCtr:INTEGER; numRows: INTEGER);
+	VAR
+		nc, row: INTEGER; bmpRows0: JSampRowList; (* *)
+		width: LONGINT; l1,l2: LONGINT;
+	BEGIN
+	    (*es* KernelLog.String("quantizeFSDither");
+	    	KernelLog.Int(cInfo.outputWidth, 5); KernelLog.Int(outRowCtr, 5); KernelLog.Int(numRows, 5); KernelLog.Ln; **)
+		nc := cInfo.outColorComponents;
+		width := cInfo.outputWidth;
+		FOR row := 0 TO numRows - 1 DO
+			(*es*)
+			IF (cInfo.oldbmpRows#NIL) &
+								(LEN(cInfo.oldbmpRows.row)=cInfo.JPEGMAXDIMENSION*RGBPIXELSIZE) THEN	(*ph: reuse*)
+				bmpRows0:= cInfo.oldbmpRows; cInfo.oldbmpRows:= cInfo.oldbmpRows.next
+			ELSE
+				NEW(bmpRows0);  NEW(bmpRows0.row, cInfo.JPEGMAXDIMENSION*RGBPIXELSIZE);
+			END;
+			bmpRows0.next := cInfo.bmpRows;  		(*re-use ! or eliminate FS Dithering anyway !*)
+
+			Copy(inputBuf.row[row]^,bmpRows0.row^); (*! do not use builtin COPY as this is stringcopy, fof 091117 !*)
+			cInfo.bmpRows := bmpRows0;  (* *)
+			cInfo.cquant.onOddRow := ~cInfo.cquant.onOddRow;
+		END;
+	END quantizeFSDither;
+
 	PROCEDURE Decode*(reader: Streams.Reader; img: Images.Image; idct, factor, dither, colorMode: INTEGER);
 	VAR
-		cInfo: CInfoPtr;
-		dest: DestPtr;
+		cInfo: CInfo;
+		dest: Dest;
 		numScanlines: LONGINT;
 		zaehler: LONGINT;
-		(*es*) rowOffset: INTEGER;
-		(* von BMPImages.Load24 *)
+		rowOffset: INTEGER;
 		VAR w,h, y, dy, x, p: LONGINT;
 		Rows:JSampRowList;
 	BEGIN
 		NEW(cInfo);
 		cInfo.err := 0;
 		NEW(dest);
-		jpegCreateDecompress(cInfo);
+		jpegCreateDecompress();
 		cInfo.reader := reader;
-
-
-		jpegReadHeader(cInfo);
-		KernelLog.String("jpegColorSpace "); KernelLog.Int(cInfo.jpegColorSpace,6); KernelLog.Ln;
+		jpegReadHeader();
+		IF logger#NIL THEN 
+			logger.String("jpegColorSpace "); logger.Int(cInfo.jpegColorSpace,6); logger.Ln; logger.Update; 
+		END;
 		IF colorMode=ColorsGray THEN cInfo.outColorSpace := JCSGRAYSCALE END;
-
 		IF cInfo.err#0 THEN RETURN END;
 		IF idct =  Integer THEN cInfo.selectIDCT := Integer
 		ELSIF idct = Scale THEN
@@ -3647,16 +3602,12 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		ELSE cInfo.selectIDCT := Float;
 		END;
 		IF dither = DitherNone THEN cInfo.ditherMode := DitherNone END;
-
-		jinitDest(cInfo,dest);
+		jinitDest(dest);
 		IF cInfo.err # 0 THEN RETURN END;
-
-		jpegStartDecompress(cInfo);
-
-
+		jpegStartDecompress();
 		zaehler := 0;
 		WHILE cInfo.outputScanline < cInfo.outputHeight DO
-			numScanlines := jpegReadScanlines(cInfo,dest.buffer,dest.bufferHeight);
+			numScanlines := jpegReadScanlines(dest.buffer,dest.bufferHeight);
 			zaehler := zaehler + numScanlines;
 		END;
 
@@ -3682,9 +3633,29 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 				cInfo.bmpRows := cInfo.bmpRows.next;
 				Rows.next:=cInfo.oldbmpRows; cInfo.oldbmpRows:=Rows;
 			END;
-		jpegFinishDecompress(cInfo);
+		jpegFinishDecompress();
 	END Decode;
+	
+	END JPEGDecoder;
+	
 
+	(* JPEG Hauptprozedur: Files oeffnen, Dekompressions und Outputobjekte generieren, Files schliessen *)
+	(** JPEG.Decode Decode file to pict
+		idct: Integer: use fast integer arithmetics
+				Float: use (slow) Floatingpoint arithmetics
+				Scale: use fast integer arithmetics and scale image by a factor of 2, 4 or 8
+		factor: Scaling-factor for idct = Scale
+		dither: DitherNone: no dithering
+					DitheFS: Floyd Steinberg dithering
+		colorMode: ColorsOld: use current display palette
+							ColorsNew: build a new (orthogonal) palette
+	*)
+		PROCEDURE Decode*(reader: Streams.Reader; img: Images.Image; idct, factor, dither, colorMode: INTEGER);
+	VAR decoder:JPEGDecoder
+	BEGIN
+		NEW(decoder);
+		decoder.Decode(reader, img, idct, factor, dither, colorMode);
+	END Decode;
 
 PROCEDURE Factory*() : Codecs.ImageDecoder;
 VAR p : JPEGDecoder;
@@ -3802,8 +3773,6 @@ BEGIN
 	extendOff[13] :=  BIT.ILSH(i,13) + 1;
 	extendOff[14] := BIT.ILSH(i,14) + 1;
 	extendOff[15] := BIT.ILSH(i,15) + 1;
-
-
 
 END JPEGDecoder.
 
