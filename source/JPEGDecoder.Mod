@@ -385,7 +385,7 @@ VAR
 
 
 (*! to do: simplify internal parameter passing - is redundant  *)
-TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
+TYPE JPEGDecoder*= OBJECT(Codecs.ImageDecoder)
 	VAR
 		width, height : LONGINT;
 		backGrndCol: Raster.Pixel; fmt: Raster.Format; transparent, interlaced: BOOLEAN;
@@ -394,6 +394,7 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 		cInfo: CInfo;
 		dest: Dest;
 		logger*:Streams.Writer;
+		res*:LONGINT;
 
 	(* open the decoder on an InputStream *)
 	PROCEDURE Open*(in : Streams.Reader; VAR res : LONGINT);
@@ -413,12 +414,16 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 			jpegReadHeader();
 		END;
 	FINALLY
-		IF ~trap & (cInfo.err = 0) THEN res := Codecs.ResOk END;
+		IF trap THEN res:=-1
+		ELSIF cInfo.err = 0 THEN res := Codecs.ResOk 
+		ELSE res:=cInfo.err 
+		END; 
 	END Open;
 
 	PROCEDURE GetImageInfo*(VAR width, height, format, maxProgressionLevel : LONGINT);
 	BEGIN
-		width := SELF.cInfo.imageWidth; height := SELF.cInfo.imageHeight
+		width := SELF.cInfo.imageWidth; height := SELF.cInfo.imageHeight;
+		IF (cInfo.err = 0) THEN res := Codecs.ResOk ELSE res:=cInfo.err END;
 	END GetImageInfo;
 
 	(** Render will read and decode the image data up to progrssionLevel.
@@ -503,6 +508,8 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 			Rows.next:=cInfo.oldbmpRows; cInfo.oldbmpRows:=Rows;
 		END;
 		jpegFinishDecompress();
+	FINALLY
+		IF (cInfo.err = 0) THEN res := Codecs.ResOk ELSE res:=cInfo.err END;
 	END GetNativeImage;
 
 	(* renders the image into the given Raster.Image at the given progressionLevel *)
@@ -511,10 +518,8 @@ TYPE JPEGDecoder= OBJECT(Codecs.ImageDecoder)
 	BEGIN
 		GetNativeImage(SELF.img);
 		NEW(canvas, img);
-		canvas.DrawImage(0, 0, SELF.img, WMGraphics.ModeCopy)
+		canvas.DrawImage(0, 0, SELF.img, WMGraphics.ModeCopy);
 	END Render;
-
-
 
 (* *****     Start Marker Prozeduren     ***** *)
 
@@ -3650,7 +3655,7 @@ KernelLog.String("  MCUColNum"); KernelLog.Int(lastMCUCol - cInfo.coef.MCUColNum
 		colorMode: ColorsOld: use current display palette
 							ColorsNew: build a new (orthogonal) palette
 	*)
-		PROCEDURE Decode*(reader: Streams.Reader; img: Images.Image; idct, factor, dither, colorMode: INTEGER);
+	PROCEDURE Decode*(reader: Streams.Reader; img: Images.Image; idct, factor, dither, colorMode: INTEGER);
 	VAR decoder:JPEGDecoder
 	BEGIN
 		NEW(decoder);
