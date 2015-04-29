@@ -1126,7 +1126,7 @@ VAR
 		ADD	ESP, 20	;
 	END MovR5;
 
-(**)
+(* *)
 	PROCEDURE AddAXAXLoopA( ladr, radr, dadr, linc, rinc, dinc, len: LONGINT );
 	CODE {SYSTEM.i386, SYSTEM.FPU}
 		MOV	EAX, [EBP+len]	;
@@ -6439,21 +6439,18 @@ VAR
 		MOV ECX, [EBP+dadr] ; ECX := ADDR(dest)
 
 		MOVUPS XMM0, [EBX] ; XMM0 := [b0,b1,b2,b3]
-		
 		MOVUPS XMM1, [EAX] ; XMM1 := [a00,a01,a02,a03]
-		MULPS XMM1, XMM0 
-		
 		MOVUPS XMM2, [EAX+16] ; XMM2 := [a10,a11,a12,a13]
-		MULPS XMM2, XMM0 
-		
 		MOVUPS XMM3, [EAX+32] ; XMM3 := [a20,a21,a22,a23]
-		MULPS XMM3, XMM0 
-		
 		MOVUPS XMM4, [EAX+48] ; XMM4 := [a30,a31,a32,a33]
-		MULPS XMM4, XMM0 
-
+		MULPS XMM1, XMM0 
+		MULPS XMM2, XMM0 
 		HADDPS XMM1, XMM2	; adjacent pairs are horizontally  added  
+		
+		MULPS XMM3, XMM0 
+		MULPS XMM4, XMM0 
 		HADDPS XMM3, XMM4	; adjacent pairs are horizontally  added  
+		
 		HADDPS XMM1, XMM3	; adjacent pairs are horizontally  added 
 		MOVUPS [ECX], XMM1
 	END MatVecMulR4x4;
