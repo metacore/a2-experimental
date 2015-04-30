@@ -126,14 +126,17 @@ END ListHosts;
 END WebHTTPServerTools.
 
 SystemTools.Free WebHTTPServerTools~
+SystemTools.FreeDownTo TCP ~
 
-Aos.Call WebHTTPServerTools.Start \r:E:/Test/ ~
-Aos.Call WebHTTPServerTools.Start \r:AOS: \l:web.log~
-Aos.Call WebHTTPServerTools.Stop
+WebHTTPServerTools.Start \r:E:/Test/ ~
 
-Aos.Call WebHTTPServerTools.AddHost livepc \r:FAT:/httproot/test~
-Aos.Call WebHTTPServerTools.RemoveHost livepc.inf.ethz.ch~
-Aos.Call WebHTTPServerTools.ListHosts
+WebHTTPServerTools.Start \r:httproot \l:HTTP.Log ~
+WebHTTPServerTools.Start \r:httproot \l:HTTP.Log \s:on ~
+WebHTTPServerTools.Stop
 
-Aos.Call WebSSMPPlugin.Install ~
-Aos.Call WebDefaultSSMP.Install ~
+WebHTTPServerTools.AddHost livepc \r:FAT:/httproot/test~
+WebHTTPServerTools.RemoveHost livepc.inf.ethz.ch~
+WebHTTPServerTools.ListHosts
+
+WebSSMPPlugin.Install ~
+WebDefaultSSMP.Install ~

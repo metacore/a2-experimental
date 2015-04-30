@@ -11,7 +11,7 @@ CONST
 	Major* = 1; Minor* = 1;
 
 	FileBufSize = 4096;
-	ServerVersion* = "A2 HTTP Server/0.9";
+	ServerVersion* = "A2 HTTP Server/1.0";
 	DocType* = '<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">';
 	Tab = 09X;
 
