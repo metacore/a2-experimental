@@ -306,7 +306,11 @@ TYPE
 									algoMatch( KEXAlgorythms, x, m );
 									IF m = "diffie-hellman-group1-sha1" THEN kex := 1
 									ELSIF m = "diffie-hellman-group-exchange-sha1" THEN kex := 2
-									ELSE Disconnect( 2, "protocol error" );  RETURN
+									ELSE 
+										Out.String( 'no common kex alg found' ); Out.Ln;
+										Out.String( "   client: " ); Out.String( KEXAlgorythms );  Out.Ln;
+										Out.String( "   server: " ); Out.String( x );  Out.Ln;
+										Disconnect( 2, "protocol error" );  RETURN
 									END
 							|2:
 									algoMatch( SHKAlgorythms, x, m );
@@ -341,7 +345,9 @@ TYPE
 					ELSE Disconnect( 2, "protocol error" );  RETURN
 					END;
 					Out.String( "exchanging keys" ); Out.Ln;
-					IF kex = 1 THEN Group1( sha1 ) ELSE GroupExchange( sha1 ) END;
+					IF kex = 1 THEN Group1( sha1 ) 
+					ELSIF kex = 2 THEN GroupExchange( sha1 ) 
+					END;
 					IF state # Closed THEN
 						ActivateNewKeys;
 						state := Connected;
