@@ -12,10 +12,9 @@ IMPORT TCP, IP, DNS, Out := KernelLog,
 
 CONST
 	ClientVersion = "SSH-2.0-A2 SSH-1.6";  SSHport = 22;
-
-	KEXAlgorythms		= "diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1";
+	KEXAlgorythms		= "diffie-hellman-group14-sha1,diffie-hellman-group1-sha1,diffie-hellman-group-exchange-sha1";
 	SHKAlgorythms		= "ssh-rsa,ssh-dss";
-	(* Ciphers list		=  built from contents of  SSHConfiguration.Text *)
+	(* Ciphers list			=  built from contents of  SSHConfiguration.Text *)
 	(* HMAC list			=  built from contents of  SSHConfiguration.Text *)
 	ComprAlgorythms	= "none";
 	Languages 			= "";
@@ -40,7 +39,7 @@ TYPE
 				servername: ARRAY 128 OF CHAR;
 				cvers, svers: ARRAY 260 OF CHAR;  (* string *)
 				sessionId-, hash: Key;
-				secret: ARRAY 256 OF CHAR;	(* shared secret, (mpint format) *)
+				secret: ARRAY 1024 OF CHAR;	(* shared secret, (mpint format) *)
 				incount, outcount: LONGINT;	(* packet counters *)
 				(* current security state: *)
 				inhkey, outhkey: Key;
@@ -49,8 +48,9 @@ TYPE
 				inmaclen, outmaclen: LONGINT;
 				new: RECORD
 						(* pending security state: *)
-						inkeybits, outkeybits: LONGINT;
 						incipher, outcipher: Ciphers.Cipher;
+						inkeybits, outkeybits: LONGINT;		(* cipher keybits *)
+						inmode, outmode: SHORTINT;		(* cipher modes *)
 						inmac, outmac: HMAC.HMac;
 						inmaclen, outmaclen: LONGINT;
 					END;
@@ -277,6 +277,7 @@ TYPE
 					x, m: ARRAY 512 OF CHAR;  lbuf: ARRAY 4 OF CHAR;
 					cipher: Ciphers.Cipher; keybits, maclen: LONGINT;
 					modname: ARRAY 32 OF CHAR;
+					mode: SHORTINT;
 					mac: HMAC.HMac;
 					sha1: SHA1.Hash;
 					packet: Packet;
@@ -305,7 +306,8 @@ TYPE
 							|1:
 									algoMatch( KEXAlgorythms, x, m );
 									IF m = "diffie-hellman-group1-sha1" THEN kex := 1
-									ELSIF m = "diffie-hellman-group-exchange-sha1" THEN kex := 2
+									ELSIF m = "diffie-hellman-group14-sha1" THEN kex := 2
+									ELSIF m = "diffie-hellman-group-exchange-sha1" THEN kex := 3
 									ELSE 
 										Out.String( 'no common kex alg found' ); Out.Ln;
 										Out.String( "   client: " ); Out.String( KEXAlgorythms );  Out.Ln;
@@ -314,15 +316,26 @@ TYPE
 									END
 							|2:
 									algoMatch( SHKAlgorythms, x, m );
-									IF m = "" THEN  Disconnect( 2, "protocol error" );  RETURN  END
+									IF m = "" THEN  
+										Out.String( 'no common server host key alg found' ); Out.Ln;
+										Out.String( "   client: " ); Out.String( SHKAlgorythms );  Out.Ln;
+										Out.String( "   server: " ); Out.String( x );  Out.Ln;
+										Disconnect( 2, "protocol error" );  RETURN  
+									END
 							|3, 4:
 									algoMatch( cipherList, x, m );
-									G.GetCipherParams( m, modname, keybits );
+									IF m = "" THEN
+										Out.String( 'no common cipher found' ); Out.Ln;
+										Out.String( "   client: " ); Out.String( cipherList );  Out.Ln;
+										Out.String( "   server: " ); Out.String( x );  Out.Ln;
+										Disconnect( 2, "protocol error" );  RETURN  
+									END;
+									G.GetCipherParams( m, modname, keybits, mode );
 									cipher := Ciphers.NewCipher( modname );
 									IF n = 3 THEN
-										new.outcipher := cipher;  new.outkeybits := keybits;
+										new.outcipher := cipher;  new.outkeybits := keybits; new.inmode := mode
 									ELSE
-										new.incipher := cipher;  new.inkeybits := keybits;
+										new.incipher := cipher;  new.inkeybits := keybits; new.outmode := mode
 									END;
 							|5, 6:
 									algoMatch( hmacList, x, m );
@@ -330,7 +343,11 @@ TYPE
 									ELSIF m # "" THEN
 										G.GetHMacParams( m, modname, maclen );
 										NEW( mac, modname )
-									ELSE Disconnect( 2, "protocol error" );  RETURN
+									ELSE 
+										Out.String( 'no common hmac found' ); Out.Ln;
+										Out.String( "   client: " ); Out.String( hmacList );  Out.Ln;
+										Out.String( "   server: " ); Out.String( x );  Out.Ln;
+										Disconnect( 2, "protocol error" );  RETURN
 									END;
 									IF n = 5 THEN
 										new.outmac := mac;  new.outmaclen := maclen
@@ -339,14 +356,20 @@ TYPE
 									END;
 							|7, 8:
 									algoMatch( ComprAlgorythms, x, m );
-									IF m # "none" THEN Disconnect( 2, "protocol error" );  RETURN END
+									IF m # "none" THEN 
+										Out.String( 'no common compr alg found' ); Out.Ln;
+										Out.String( "   client: " ); Out.String( ComprAlgorythms );  Out.Ln;
+										Out.String( "   server: " ); Out.String( x );  Out.Ln;
+										Disconnect( 2, "protocol error" );  RETURN 
+									END
 							END;
 						END;
 					ELSE Disconnect( 2, "protocol error" );  RETURN
 					END;
 					Out.String( "exchanging keys" ); Out.Ln;
 					IF kex = 1 THEN Group1( sha1 ) 
-					ELSIF kex = 2 THEN GroupExchange( sha1 ) 
+					ELSIF kex = 2 THEN Group14( sha1 )
+					ELSIF kex = 3 THEN GroupExchange( sha1 ) 
 					END;
 					IF state # Closed THEN
 						ActivateNewKeys;
@@ -380,9 +403,9 @@ TYPE
 					pub, serverpub, sec: B.BigNumber;  dh: DH.DH;  packet: Packet;
 				BEGIN
 					IF 1 IN G.debug THEN
-						Out.String( "diffie-hellman-group1-sha1 key exchange ... " );
+						Out.String( "diffie-hellman-group1-sha1 key exchange ... " );  Out.Ln;
 					END;
-					NEW( dh, 512, "dh.ssh.group1" );
+					NEW( dh, 0, "dh.ssh.group1" );
 					pub := dh.GenPubKey( );
 
 					NEW( packet, DHInit, 1024 );
@@ -393,14 +416,14 @@ TYPE
 						pos := 1;
 						U.GetLength( buf, pos, lshkb );
 						sha1.Update( buf, 1, 4 + lshkb );					(* KS *)
-						sha1.Update( packet.buf^, 1, packet.len - 1 );		(* e *)
+						sha1.Update( packet.buf^, 1, packet.len - 1 );	(* e *)
 						INC( pos, lshkb );
 						U.GetLength( buf, pos, lf );
-						sha1.Update( buf, 1 + 4 + lshkb, lf );				(*  f *)
+						sha1.Update( buf, 1 + 4 + lshkb, 4 + lf );			(*  f *)
 						B.AssignBin( serverpub, buf, 1 + 4 + lshkb + 4, lf );
 						sec := dh.ComputeKey( serverpub );
 						p := 0;  U.PutBigNumber( secret, p, sec );
-						sha1.Update( secret, 0, p );						(* K *)
+						sha1.Update( secret, 0, p );							(* K *)
 						sha1.GetHash( hash, 0 );
 						IF 1 IN G.debug THEN  Out.String( "done" );  Out.Ln  END;
 						CheckSHK( buf, 1, 1 + 4 + lshkb + 4 + lf );
@@ -409,6 +432,43 @@ TYPE
 						Disconnect( 2, "protocol error: 'DH REPLY' package expected" );
 					END
 				END Group1;
+				
+				PROCEDURE Group14( sha1: SHA1.Hash );
+				CONST DHInit = 1EX;  DHReply = 1FX;
+				VAR
+					buf: ARRAY 2048 OF CHAR; p, pos, len, lshkb, lf: LONGINT;
+					pub, serverpub, sec: B.BigNumber;  dh: DH.DH;  packet: Packet;
+				BEGIN
+					IF 1 IN G.debug THEN
+						Out.String( "diffie-hellman-group14-sha1 key exchange ... " );  Out.Ln;
+					END;
+					NEW( dh, 0, "dh.ssh.group14" );
+					pub := dh.GenPubKey( );
+
+					NEW( packet, DHInit, 2048 );
+					U.PutBigNumber( packet.buf^, packet.len, pub );
+					SendPacket( packet );
+
+					IF ReceivePacket( buf, len ) = DHReply THEN
+						pos := 1;
+						U.GetLength( buf, pos, lshkb );
+						sha1.Update( buf, 1, 4 + lshkb );					(* KS *)
+						sha1.Update( packet.buf^, 1, packet.len - 1 );	(* e *)
+						INC( pos, lshkb );
+						U.GetLength( buf, pos, lf );
+						sha1.Update( buf, 1 + 4 + lshkb, 4 + lf );			(*  f *)
+						B.AssignBin( serverpub, buf, 1 + 4 + lshkb + 4, lf );
+						sec := dh.ComputeKey( serverpub );
+						p := 0;  U.PutBigNumber( secret, p, sec );
+						sha1.Update( secret, 0, p );							(* K *)
+						sha1.GetHash( hash, 0 );
+						IF 1 IN G.debug THEN  Out.String( "done" );  Out.Ln  END;
+						CheckSHK( buf, 1, 1 + 4 + lshkb + 4 + lf );
+						IF incount < 5 THEN  sessionId := hash END;
+					ELSE
+						Disconnect( 2, "protocol error: 'DH REPLY' package expected" );
+					END
+				END Group14;
 
 				PROCEDURE CheckSHK( CONST buf: ARRAY OF CHAR; shk, sig: LONGINT );
 				VAR keyblob, signature: ARRAY 2048 OF CHAR;
@@ -430,7 +490,7 @@ TYPE
 					pack1, pack2: Packet;
 				BEGIN
 					IF 1 IN G.debug THEN
-						Out.String( "diffie-hellman-group-exchange-sha1 key exchange ... " );
+						Out.String( "diffie-hellman-group-exchange-sha1 key exchange ... " ); Out.Ln;
 					END;
 					NEW( pack1, GEXRequest, 64 );
 					pack1.AppInteger( 1024 );
@@ -456,15 +516,15 @@ TYPE
 							U.GetLength( buf2, pos, lshkb );
 							sha1.Update( buf2, 1, 4 + lshkb );					(* KS *)
 							sha1.Update( pack1.buf^, 1, 12 );					(* min || n || max *)
-							sha1.Update( buf1, 1, b1len - 1 );				(* p || g *)
+							sha1.Update( buf1, 1, b1len - 1 );					(* p || g *)
 							sha1.Update( pack2.buf^, 1, pack2.len - 1 );		(* e *)
 							INC( pos, lshkb );
 							U.GetLength( buf2, pos, lf );
-							sha1.Update( buf2, 1 + 4 + lshkb, 4 + lf );			(* f *)
+							sha1.Update( buf2, 1 + 4 + lshkb, 4 + lf );		(* f *)
 							B.AssignBin( serverpub, buf2, 1 + 4 + lshkb + 4, lf );
 							sec := dh.ComputeKey( serverpub );
 							pos := 0;  U.PutBigNumber( secret, pos, sec );
-							sha1.Update( secret, 0, pos );					(* K *)
+							sha1.Update( secret, 0, pos );						(* K *)
 							sha1.GetHash( hash, 0 );
 							IF 1 IN G.debug THEN  Out.String( "done" );  Out.Ln  END;
 							CheckSHK( buf2, 1, 1 + 4 + lshkb + 4 + lf );
@@ -483,14 +543,14 @@ TYPE
 				VAR len: LONGINT;  buf: ARRAY 512 OF CHAR; packet: Packet;
 				BEGIN
 					DeriveKey( 'C', new.outkeybits DIV 8, buf );
-					new.outcipher.InitKey( buf, 0, new.outkeybits );
+					new.outcipher.InitKey( buf, new.outkeybits );
 					DeriveKey( 'A', 16, buf );
-					new.outcipher.SetIV( buf, 0 );
+					new.outcipher.SetIV( buf, new.outmode );
 
 					DeriveKey( 'D', new.inkeybits DIV 8, buf );
-					new.incipher.InitKey( buf, 0, new.inkeybits );
+					new.incipher.InitKey( buf, new.inkeybits );
 					DeriveKey( 'B', 16, buf );
-					new.incipher.SetIV( buf, 0 );
+					new.incipher.SetIV( buf, new.inmode );
 
 					NEW( packet, NewKeys, 64 );  SendPacket( packet );
 
@@ -514,30 +574,28 @@ TYPE
 				END ActivateNewKeys;
 
 
-				PROCEDURE DeriveKey( which: CHAR;  len: LONGINT;  VAR key: ARRAY OF CHAR );
+				PROCEDURE DeriveKey( keykind: CHAR;  keylen: LONGINT;  VAR key: ARRAY OF CHAR );
 				VAR
 					buf: ARRAY 512 OF CHAR;
-					i, pos1, pos2, l: LONGINT;
-					sha1: SHA1.Hash;
+					i, p, top, slen: LONGINT;
+					h: SHA1.Hash;
 				BEGIN
-					NEW( sha1 );  sha1.Initialize;
-					pos1 := 0;  U.GetLength( secret, pos1, l );
-					sha1.Update( secret, 0, l + 4 );
-					sha1.Update( hash, 0, 20 );
-					buf[0] := which;  sha1.Update( buf, 0, 1 );
-					sha1.Update( sessionId, 0, 20 );
-					sha1.GetHash( buf, 0 );
-					pos2 :=  sha1.size;
-					WHILE pos2 < len DO
-						sha1.Initialize;
-						pos1 := 0;  U.GetLength( secret, pos1, l );
-						sha1.Update( secret, 0, l + 4 );
-						sha1.Update( hash, 0, 20 );
-						sha1.Update( buf, 0, pos2 );
-						sha1.GetHash( buf, pos2 );
-						INC( pos2,  sha1.size );
+					NEW( h );  h.Initialize;
+					p := 0;  U.GetLength( secret, p, slen );
+					h.Update( secret, 0, slen + 4 );
+					h.Update( hash, 0, 20 );
+					buf[0] := keykind;  h.Update( buf, 0, 1 );
+					h.Update( sessionId, 0, 20 );
+					h.GetHash( buf, 0 );  top :=  h.size;
+					WHILE top < keylen DO
+						h.Initialize;
+						p := 0;  U.GetLength( secret, p, slen );
+						h.Update( secret, 0, slen + 4 );
+						h.Update( hash, 0, 20 );
+						h.Update( buf, 0, top );
+						h.GetHash( buf, top );  INC( top,  h.size );
 					END;
-					FOR i := 0 TO len - 1 DO key[i] := buf[i] END;
+					FOR i := 0 TO keylen - 1 DO key[i] := buf[i] END;
 				END DeriveKey;
 
 

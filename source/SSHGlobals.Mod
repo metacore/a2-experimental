@@ -1,6 +1,8 @@
 MODULE SSHGlobals;
 
-IMPORT SYSTEM, Texts, TextUtilities, UTF8Strings, Strings, Commands, Out := KernelLog;
+IMPORT SYSTEM,
+		Texts, TextUtilities, UTF8Strings, Strings, Commands, 
+		Ciphers := CryptoCiphers, Out := KernelLog;
 
 CONST
 	ConfigFile* = "SSH.Configuration.Text";
@@ -111,7 +113,9 @@ VAR
 
 
 	PROCEDURE GetCipherParams*(	CONST name: ARRAY OF CHAR;
-									VAR modname: ARRAY OF CHAR;  VAR bits: LONGINT );
+											VAR modname: ARRAY OF CHAR;  
+											VAR bits: LONGINT;
+											VAR mode: SHORTINT );
 	VAR x: ARRAY 128 OF CHAR;
 	BEGIN
 		IF buf = NIL THEN  buf := GetConfigBuffer()  END;
@@ -122,7 +126,12 @@ VAR
 			GetConfigString( x );
 			IF x = "cipher" THEN  GetConfigString( x );
 				IF x = name THEN
-					GetConfigString( modname );  GetConfigInt( bits )
+					GetConfigString( modname );  GetConfigInt( bits );
+					GetConfigString( x );
+					IF x = "CBC" THEN  mode := Ciphers.CBC
+					ELSIF x = "CTR" THEN  mode := Ciphers.CTR
+					ELSE  mode := Ciphers.ECB
+					END;
 				END
 			END;
 			NextLine
