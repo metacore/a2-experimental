@@ -30,12 +30,12 @@ TYPE
 				s: TS;
 				ivl, ivr: SET;
 
-				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR;  pos: LONGINT;  keybits: LONGINT );
+				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR; keybits: LONGINT );
 				VAR i, m: LONGINT;  xl, xr: SET;
 				BEGIN
-					InitKey^( src, pos, keybits );  m := keybits DIV 8;  s := s0;
+					InitKey^( src, keybits );  m := keybits DIV 8;  s := s0;
 					FOR i := 0 TO N + 1 DO  
-						p[i] := p0[i] / U.SetFromBufferBE( src, pos + (4*i) MOD m )  
+						p[i] := p0[i] / U.SetFromBufferBE( src, (4*i) MOD m )  
 					END;
 					xl := {};  xr := {};
 					FOR i := 0 TO N BY 2 DO  encrypt0( xl, xr, xl, xr );  p[i] := xl;  p[i + 1] := xr  END;
@@ -57,16 +57,16 @@ TYPE
 					END
 				END InitKey;
 
-				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR;  pos: LONGINT );
+				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR; mode: SHORTINT );
 				BEGIN
-					SetIV^( src, pos );  
-					ivl := U.SetFromBufferBE( src, pos );  ivr := U.SetFromBufferBE( src, pos + 4 );
+					SetIV^( src, mode );  
+					ivl := U.SetFromBufferBE( src, 0 );  ivr := U.SetFromBufferBE( src, 4 );
 				END SetIV;
 
 				PROCEDURE Encrypt*( VAR buf: ARRAY OF CHAR;  ofs, len: LONGINT );
 				VAR i: LONGINT;
 				BEGIN
-					ASSERT( isKeyInitialized );
+					ASSERT( isKeyInitialized & (mode IN {Ciphers.ECB, Ciphers.CBC}) );
 					ASSERT( len MOD blockSize = 0 );   (* padding must have been added *)
 					i := 0;
 					WHILE i < len DO  EncryptBlock( buf, ofs + i );  INC( i, blockSize );   END
@@ -101,23 +101,21 @@ TYPE
 				END DecryptBlock;
 				
 				
-				PROCEDURE F( xs: SET ): SET;
-				VAR a, b, c, d, x, y: LONGINT;  t: SET;
+				PROCEDURE F( x: LONGINT ): SET;
+				VAR 
+					ab, c: SET; d: LONGINT; 
 				BEGIN
-					x := S.VAL( LONGINT, xs );
-					d := x MOD 256;  x := x DIV 256;  c := x MOD 256;  x := x DIV 256;
-					b := x MOD 256;  x := x DIV 256;  a := x MOD 256;
-					
-					t := S.VAL( SET, s.a[a] + s.b[b] ) / s.c[c];
-					y := S.VAL( LONGINT, t ) + s.d[d];
-					RETURN S.VAL( SET, y );
+					ab := S.VAL( SET, s.a[x DIV 1000000H MOD 100H] + s.b[x DIV 10000H MOD 100H] );
+					c := s.c[x DIV 100H MOD 100H];
+					d := s.d[x MOD 100H];
+					RETURN S.VAL( SET, S.VAL( LONGINT, ab/c ) + d );
 				END F;
 
 				PROCEDURE encrypt0( xl, xr: SET;  VAR yl, yr: SET );
 				VAR t: SET;  i: INTEGER;
 				BEGIN
 					FOR i := 0 TO N - 1 DO
-						xl := xl/p[i];  xr := F( xl )/xr;
+						xl := xl/p[i];  xr := F( S.VAL( LONGINT, xl ) )/xr;
 						t := xl;  xl := xr;  xr := t
 					 END;
 					t := xl;  xl := xr;  xr := t;
@@ -128,7 +126,7 @@ TYPE
 				VAR t: SET;  i: INTEGER;
 				BEGIN
 					FOR i := N + 1 TO 2 BY -1 DO
-						xl := xl/p[i];  xr := F( xl )/xr;
+						xl := xl/p[i];  xr := F( S.VAL( LONGINT, xl ) )/xr;
 						t := xl;  xl := xr;  xr := t
 					END;
 					t := xl;  xl := xr;  xr := t;

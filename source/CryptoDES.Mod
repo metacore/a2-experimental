@@ -20,13 +20,13 @@ TYPE
 		ske, skd: ARRAY 32 OF SET;  ki: LONGINT;
 		ivx, ivy: SET;
 	
-		PROCEDURE InitKey*( CONST src: ARRAY OF CHAR;  pos: LONGINT;  keybits: LONGINT );
+		PROCEDURE InitKey*( CONST src: ARRAY OF CHAR;  keybits: LONGINT );
 		VAR X, Y: SET;  i: LONGINT;
 		BEGIN
 			ASSERT( keybits = 64 );
-			InitKey^( src, pos, keybits );
+			InitKey^( src, keybits );
 			
-			X := U.SetFromBufferBE( src, pos );  Y := U.SetFromBufferBE( src, pos + 4 );
+			X := U.SetFromBufferBE( src, 0 );  Y := U.SetFromBufferBE( src, 4 );
 			
 			ComputeSubkeys( X, Y, ske, 0 );
 			
@@ -37,17 +37,17 @@ TYPE
 		END InitKey;
 		
 		
-		PROCEDURE SetIV*( CONST src: ARRAY OF CHAR;  p: LONGINT );
+		PROCEDURE SetIV*( CONST src: ARRAY OF CHAR; mode: SHORTINT );
 		BEGIN
-			SetIV^( src, p );   (* set mode *)
-			ivx := U.SetFromBufferBE( src, p );  ivy := U.SetFromBufferBE( src, p+4 )
+			SetIV^( src, mode );   (* set mode *)
+			ivx := U.SetFromBufferBE( src, 0 );  ivy := U.SetFromBufferBE( src, 4 )
 		END SetIV;
 		
 		
 		PROCEDURE  Encrypt* ( VAR buf: ARRAY OF CHAR; ofs, len: LONGINT );
 		VAR i, r: LONGINT;   X, Y: SET;
 		BEGIN
-			ASSERT( isKeyInitialized );
+			ASSERT( isKeyInitialized & (mode IN {Ciphers.ECB, Ciphers.CBC}) );
 			ASSERT( len MOD blockSize = 0 );   (* padding must have been added *)
 			i := 0;
 			WHILE i < len DO

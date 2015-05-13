@@ -25,16 +25,16 @@ TYPE
 				subkeys: ARRAY 8 + 2*N OF LONGINT;
 				iv: Block;
 
-				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR;  pos: LONGINT;  keybits: LONGINT );
+				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR; keybits: LONGINT );
 				CONST step = 02020202H;  bump = 01010101H;
 				VAR
 					i, A, B, m, nsub: LONGINT;
 					k32e, k32o: ARRAY 4 OF LONGINT;   (* even/odd key dwords *)
 				BEGIN
-					InitKey^( src, pos, keybits );  SELF.keybits := keybits;
+					InitKey^( src, keybits );  SELF.keybits := keybits;
 					FOR i := 0 TO keybits DIV 32 - 1 DO
-						IF ODD( i ) THEN  k32o[i DIV 2] := U.IntFromBufferLE( src, pos + i*4 )
-						ELSE  k32e[i DIV 2] := U.IntFromBufferLE( src, pos + i*4 )
+						IF ODD( i ) THEN  k32o[i DIV 2] := U.IntFromBufferLE( src, i*4 )
+						ELSE  k32e[i DIV 2] := U.IntFromBufferLE( src, i*4 )
 						END
 					END;
 					m := keybits DIV 64 - 1;
@@ -53,17 +53,17 @@ TYPE
 					END
 				END InitKey;
 
-				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR;  pos: LONGINT );
+				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR; mode: SHORTINT );
 				VAR i: INTEGER;
 				BEGIN
-					SetIV^( src, pos );   (* set mode *)
-					FOR i := 0 TO 3 DO  iv[i] := U.SetFromBufferLE( src, pos + 4*i )  END;
+					SetIV^( src, mode );   (* set mode *)
+					FOR i := 0 TO 3 DO  iv[i] := U.SetFromBufferLE( src, 4*i )  END;
 				END SetIV;
 
 				PROCEDURE Encrypt*( VAR buf: ARRAY OF CHAR;  ofs, len: LONGINT );
 				VAR i: LONGINT;
 				BEGIN
-					ASSERT( isKeyInitialized );
+					ASSERT( isKeyInitialized & (mode IN {Ciphers.ECB, Ciphers.CBC}) );
 					ASSERT( len MOD blockSize = 0 );   (* padding must have been added *)
 					i := 0;
 					WHILE i < len DO  EncryptBlock( buf, ofs + i );  INC( i, blockSize );   END

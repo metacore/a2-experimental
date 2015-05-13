@@ -16,18 +16,18 @@ TYPE
 		END Init;
 
 		(** initialize arc4 key. keybits = [8..2048], MUST be multiple of 8. *)
-		PROCEDURE InitKey*( CONST src: ARRAY OF CHAR; pos, keybits: LONGINT);
+		PROCEDURE InitKey*( CONST src: ARRAY OF CHAR; keybits: LONGINT);
 		VAR
 			keydata: ARRAY 256 OF CHAR;
 			keybytes: LONGINT;
 			temp: CHAR;
 		BEGIN
 			ASSERT( keybits MOD 8 = 0 ); 	ASSERT( keybits >  7); 	ASSERT( keybits < 2049 );
-			InitKey^( src, pos, keybits );
+			InitKey^( src, keybits );
 			keybytes:= keybits DIV 8;
 			i := 0;  j := 0;
 			FOR i := 0 TO 255 DO  s[ i ] := CHR( i )  END;
-			FOR i := 0 TO 255 DO  keydata[ i ] := src[pos + (i MOD keybytes)]  END;
+			FOR i := 0 TO 255 DO  keydata[ i ] := src[i MOD keybytes]  END;
 			FOR i := 0 TO 255 DO
 				j := ( j + ORD( s[i] ) + ORD( keydata[i] ) ) MOD 256;
 				temp := s[ i ];

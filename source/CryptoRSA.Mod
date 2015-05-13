@@ -220,7 +220,7 @@ VAR
 		md5.Update( passwd, 0, pl );
 		md5.GetHash( digest, 0 );
 		cipher := Ciphers.NewCipher("CryptoIDEA");
-		cipher.InitKey( digest, 0, 128 );
+		cipher.InitKey( digest, 128 );
 
 		cipher.Decrypt( buf, 0, bl );
 		bl := 0;
@@ -270,7 +270,7 @@ VAR
 		md5.Update( passwd, 0, pl );
 		md5.GetHash( digest, 0 );
 		cipher := Ciphers.NewCipher("CryptoIDEA");
-		cipher.InitKey( digest, 0, 128 );
+		cipher.InitKey( digest, 128 );
 
 		bl := 0;
 		U.PutLength( buf, bl, PrivateKeyMagic );

@@ -12,25 +12,25 @@ TYPE
 				ekeys, dkeys: KeyBlock;
 				iv: Block;
 
-				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR;  pos: LONGINT;  keybits: LONGINT );
+				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR; keybits: LONGINT );
 				BEGIN
 					ASSERT( keybits = 128 );
-					InitKey^( src, pos, keybits );
-					CalcEncryptionKeys( src, pos, ekeys );
+					InitKey^( src, keybits );
+					CalcEncryptionKeys( src, ekeys );
 					CalcDecryptionKeys( ekeys, dkeys )
 				END InitKey;
 
-				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR;  p: LONGINT );
+				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR; mode: SHORTINT );
 				VAR i: INTEGER;
 				BEGIN
-					SetIV^( src, p );   (* set mode *)
-					FOR i := 0 TO 3 DO  iv[i] := ORD( src[p + 2*i + 1] )*256 + ORD( src[p + 2*i] )  END
+					SetIV^( src, mode );   (* set mode *)
+					FOR i := 0 TO 3 DO  iv[i] := ORD( src[2*i + 1] )*256 + ORD( src[2*i] )  END
 				END SetIV;
 
 				PROCEDURE Encrypt*( VAR buf: ARRAY OF CHAR;  ofs, len: LONGINT );
 				VAR i: LONGINT;
 				BEGIN
-					ASSERT( isKeyInitialized );
+					ASSERT( isKeyInitialized & (mode IN {Ciphers.ECB, Ciphers.CBC}) );
 					ASSERT( len MOD blockSize = 0 );   (* padding must have been added *)
 					i := 0;
 					WHILE i < len DO  EncryptBlock( buf, ofs + i );  INC( i, blockSize );   END
@@ -117,11 +117,12 @@ TYPE
 		RETURN S.VAL( LI, S.VAL( SET, LSH( a, 9 ) ) + S.VAL( SET, LSH( b, -7 ) ) ) MOD 10000H;
 	END shor;
 
-	PROCEDURE CalcEncryptionKeys( CONST src: ARRAY OF CHAR;  pos: LONGINT;  VAR e: KeyBlock );
+	PROCEDURE CalcEncryptionKeys( CONST src: ARRAY OF CHAR;  VAR e: KeyBlock );
 	VAR s: ARRAY 54 OF CARD16;
-		i, j: INTEGER;
+		i, j, p: INTEGER;
 	BEGIN
-		FOR i := 0 TO 7 DO  s[i] := ORD( src[pos] )*256 + ORD( src[pos + 1] );  INC( pos, 2 )  END;
+		p := 0;
+		FOR i := 0 TO 7 DO  s[i] := ORD( src[p] )*256 + ORD( src[p + 1] );  INC( p, 2 )  END;
 		i := 8;  j := 0;
 		WHILE i < 53 DO
 			s[i + 0] := shor( s[j + 1], s[j + 2] );

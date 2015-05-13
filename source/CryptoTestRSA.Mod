@@ -7,8 +7,8 @@ IMPORT
 
 CONST
 	Size = 1024;
-	PrivateKeyFile = "PrivRSAKey.Data";
-	PublicKeyFile = "PubRSAKey.Data";
+	PrivateKeyFile = "SSH.RSAKey.priv";
+	PublicKeyFile = "SSH.RSAKey.pub";
 
 	PROCEDURE Test1*;
 	VAR

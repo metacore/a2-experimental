@@ -26,23 +26,23 @@ TYPE
 			VAR keys: Keys;
 				iv: Block;
 
-				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR;  pos: LONGINT;  keybits: LONGINT );
+				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR;  keybits: LONGINT );
 				BEGIN
 					ASSERT( keybits MOD 8 = 0 );
-					InitKey^( src, pos, keybits );
-					InitKeys( keys, src, pos, keybits DIV 8 )
+					InitKey^( src, keybits );
+					InitKeys( keys, src, keybits DIV 8 )
 				END InitKey;
 
-				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR;  p: LONGINT );
+				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR;  mode: SHORTINT );
 				BEGIN
-					SetIV^( src, p );   (* set mode *)
-					iv[0] := U.SetFromBufferBE( src, p );  iv[1] := U.SetFromBufferBE( src, p + 4 );
+					SetIV^( src, mode );   (* set mode *)
+					iv[0] := U.SetFromBufferBE( src, 0 );  iv[1] := U.SetFromBufferBE( src, 4 );
 				END SetIV;
 
 				PROCEDURE Encrypt*( VAR buf: ARRAY OF CHAR;  ofs, len: LONGINT );
 				VAR i: LONGINT;
 				BEGIN
-					ASSERT( isKeyInitialized );
+					ASSERT( isKeyInitialized &(mode IN {Ciphers.ECB, Ciphers.CBC}) );
 					ASSERT( len MOD blockSize = 0 );   (* padding must have been added *)
 					i := 0;
 					WHILE i < len DO  EncryptBlock( buf, ofs + i );  INC( i, blockSize )   END
@@ -94,7 +94,7 @@ TYPE
 (*-------------------------------------------------------------------------------*)
 
 
-	PROCEDURE InitKeys( VAR keys: Keys;  CONST src: ARRAY OF CHAR;  pos: LONGINT;  len: LONGINT );
+	PROCEDURE InitKeys( VAR keys: Keys;  CONST src: ARRAY OF CHAR;  len: LONGINT );
 	VAR buf: ARRAY 16 OF CHAR;
 		X, Z: ARRAY 4 OF SET;
 		x, z: ARRAY 16 OF INTEGER;
@@ -124,7 +124,7 @@ TYPE
 	BEGIN
 		IF len > 16 THEN  len := 16  END;
 		FOR i := 0 TO 15 DO  buf[i] := 0X  END;
-		FOR i := 0 TO len - 1 DO  buf[i] := src[pos + i]  END;
+		FOR i := 0 TO len - 1 DO  buf[i] := src[i]  END;
 		FOR i := 0 TO 15 DO  x[i] := ORD( buf[i] )  END;
 		FOR i := 0 TO 3 DO  X[i] := U.SetFromBufferBE( buf, 4*i )  END;
 		keys.short := len <= 10;

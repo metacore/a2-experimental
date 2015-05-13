@@ -792,9 +792,9 @@ TYPE
 		PROCEDURE InitializeConnectionState( state: ConnectionState; sp: SecurityParameters );
 		BEGIN
 			IF state.cipher # NIL THEN
-				state.cipher.InitKey( state.cipherKey, 0, 8 * sp.cipherKeySize );
+				state.cipher.InitKey( state.cipherKey, 8 * sp.cipherKeySize );
 				IF state.cipher.blockSize > 0 THEN
-					state.cipher.SetIV( state.iv, 0 )
+					state.cipher.SetIV( state.iv, Ciphers.CBC )
 				END
 			END
 		END InitializeConnectionState;

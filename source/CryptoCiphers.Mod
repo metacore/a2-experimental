@@ -6,6 +6,7 @@ CONST
 	(** cipher modes *)
 	ECB* = 0;   (** electronic codebook mode *)
 	CBC* = 1;   (** cipher-block chaining mode *)
+	CTR* = 2;	(** counter mode *)
 
 	(** error codes *)
 	Ok* = 0;
@@ -39,16 +40,18 @@ TYPE
 				END appmode;
 
 				(** initialize key for de/encryption *)
-				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR;  pos: LONGINT;  keybits: LONGINT );
+				PROCEDURE InitKey*( CONST src: ARRAY OF CHAR; keybits: LONGINT );
 				BEGIN
 					appsize( keybits );  isKeyInitialized := TRUE
 				END InitKey;
 
 				(** set initialization vector, change mode to CBC;  MUST be invoked AFTER Initkey *)
-				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR;  pos: LONGINT );
+				PROCEDURE SetIV*( CONST src: ARRAY OF CHAR; mode: SHORTINT );
 				BEGIN
 					ASSERT( isKeyInitialized );   (* initKey must have been called before *)
-					mode := CBC;  appmode( "-cbc" )
+					ASSERT( mode IN {CBC, CTR} );
+					SELF.mode := mode;  
+					IF mode = CBC THEN  appmode( "-cbc" ) ELSE  appmode( "-ctr" )  END
 				END SetIV;
 
 				(** encrypts len bytes of data; len must be a multiple of blockSize *)
