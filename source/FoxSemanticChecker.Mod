@@ -6627,7 +6627,7 @@ TYPE
 						| Global.AtMulDec, Global.AtMulInc: mustBeBinary := TRUE;
 						| Global.DecMul, Global.IncMul: mustBeBinary := TRUE;
 						| Global.Dec, Global.Inc: hasReturnType := FALSE; (* unary and binary *)
-						| Global.Excl, Global.Incl: (* TODO: arity? *)
+						| Global.Excl, Global.Incl:hasReturnType := FALSE; 
 						| Global.Abs: mustBeUnary := TRUE;
 						| Global.Ash: (* TODO: arity? *)
 						| Global.Cap: (* TODO: arity? *)
