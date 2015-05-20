@@ -251,8 +251,8 @@ TYPE
 						SendPacket( packet );
 
 						tcp.Close( );  state := Closed;
-						Out.String( "connection to " ); Out.String( servername );
-						Out.String( " closed "); Out.Ln;
+						IF msg # "" THEN  Out.String( msg );  Out.Ln  END;
+						Out.String( "connection to " ); Out.String( servername );  Out.String( " closed "); Out.Ln;
 					END
 				END Disconnect;
 
