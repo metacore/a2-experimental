@@ -471,6 +471,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetGenerator("WMNavigate.GenOverview");
 			layoutMode.Set(Aspect);
 			borderWidth.Set(Border);
 			itemWidth.Set(ThumbnailWidth + 2*Border);
@@ -595,6 +596,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetGenerator("WMNavigate.GenTaskList");
 			NEW(style, ProtoTaskListStyle, NIL, NIL); properties.Add(style);
 			NEW(menuLocation, ProtoTaskListMenuLocation, NIL, NIL); properties.Add(menuLocation);
 			NEW(showThumbnails, ProtoTaskListShowThumbnails, NIL, NIL); properties.Add(showThumbnails);
@@ -605,7 +607,7 @@ TYPE
 					layoutMode.Set(ScaleUp);
 				| Icons:
 					itemWidth.Set(40); itemHeight.Set(50);
-					layoutMode.Set(Fixed);
+					layoutMode.Set(Default); (*was Fixed*)
 			ELSE
 				itemWidth.Set(100); itemHeight.Set(50);
 			END;
@@ -1407,41 +1409,7 @@ BEGIN
 		WMGraphics.StoreImage(window(WMWindowManager.BufferWindow).img, fn, res);
 	END;
 END WindowShot;
-(*
-PROCEDURE StoreWindow*(window: WMWindowManager.Window);
-VAR context: Storage; msg: WMMessages.Message; filename: Files.FileName;  
-BEGIN
-	GenerateName(window.GetTitle(),filename); Strings.Append(filename,".Cwd"); (* component window *)
-	
-	NEW(context);
-	msg.ext := context; msg.msgType := WMMessages.MsgExt;
-	window.Handle(msg);
-	context.Write(fileName);
-END StoreWindow;
-*)
 
-(*
-		PROCEDURE Add*(CONST name, loader : ARRAY OF CHAR; w : WM.Window; appData : XML.Element);
-		VAR window: XML.Element;
-		BEGIN {EXCLUSIVE}
-			NEW(window); window.SetName("Window");
-
-			StoreString(window, "name", name);
-			StoreString(window, "loader", loader);
-
-			StoreLongint(window, "l", w.bounds.l);
-			StoreLongint(window, "t", w.bounds.t);
-			StoreLongint(window, "r", w.bounds.r);
-			StoreLongint(window, "b", w.bounds.b);
-
-			StoreSet(window, "flags", w.flags);
-
-			IF appData # NIL THEN window.AddContent(appData) END;
-
-			data.AddContent(window)
-		END Add;
-
-*)
 
 PROCEDURE StoreWindow(window: WMWindowManager.Window);
 VAR fn0,fn: Files.FileName;  s: ARRAY 6 OF CHAR; i, res: LONGINT; f:Files.File; w:Files.Writer;
