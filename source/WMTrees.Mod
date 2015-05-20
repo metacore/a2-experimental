@@ -351,6 +351,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrTreeView);
+			SetGenerator("WMTrees.TreeViewGen");
 
 			NEW(clHover, PrototypeTclHover, NIL, NIL); properties.Add(clHover);
 			NEW(clSelected, PrototypeTclSelected, NIL, NIL); properties.Add(clSelected);
