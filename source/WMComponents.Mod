@@ -2131,7 +2131,6 @@ TYPE
 		disableUpdate : LONGINT;
 		content : VisualComponent;
 		scaling* : BOOLEAN;
-		delayedInvalidate:BOOLEAN;
 	
 
 		PROCEDURE ToXML*():XML.Content;
@@ -2269,8 +2268,8 @@ TYPE
 			ELSIF (m.msgType = Messages.MsgSetLanguage) & (m.ext # NIL) & (m.ext IS LanguageExtension) THEN
 				LanguageChanged(m.ext(LanguageExtension).languages);
 			ELSIF (m.msgType=Messages.MsgInvalidate) THEN  (* sent by WindowManager when a window is added to display space to assure it is up-to-date*)
-				IF form=NIL THEN delayedInvalidate:=TRUE; RETURN 
-				ELSE delayedInvalidate:=FALSE;m.sender:=form; (* will be passed to form below, which will call sender.InvalidateRect *)
+				IF form=NIL THEN RETURN 
+				ELSE m.sender:=form; (* will be passed to form below, which will call sender.InvalidateRect *)
 				END;
 			END;
 			IF (TraceFocus IN Trace) THEN
@@ -2334,7 +2333,6 @@ TYPE
 				window.form := SELF; 
 				bounds.Set(Rectangles.MakeRect(0, 0, window.GetWidth(), window.GetHeight()));
 				NEW(seq, Handle); seq.SetTrapHandler(window.Trap); SetSequencer(seq);
-				IF window.delayedInvalidate THEN window.delayedInvalidate:=FALSE; window.Invalidate(window.bounds); (*window.Handle(window.delayedInvalidateMsg)*) END;
 			END;
 		END SetWindow;
 
