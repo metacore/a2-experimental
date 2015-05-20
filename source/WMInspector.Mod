@@ -1,7 +1,7 @@
 MODULE WMInspector; (** AUTHOR "staubesv"; PURPOSE "Component inspection"; *)
 
 IMPORT
-	Modules, Strings, XMLObjects, Texts,
+	Modules, Strings, XMLObjects, Texts, Files,
 	WMRectangles, WMGraphics, WMMessages, WMRestorable, WMWindowManager,
 	WMComponents, WMStandardComponents, WMTrees, WMTabComponents, WMInspectionComponents, XML, Raster, WMPopups, Models;
 
@@ -267,6 +267,29 @@ TYPE
 				AddComponents(window.form, node);
 			END;
 		END AddFormWindow;
+		
+		PROCEDURE AddNonFormWindow(window : WMWindowManager.Window; parent : WMTrees.TreeNode);
+		VAR node : WMTrees.TreeNode; string : Strings.String;
+			caption, s,path: ARRAY 256 OF CHAR; typeDesc:Modules.TypeDesc;
+		BEGIN
+			ASSERT((window # NIL) & (parent # NIL));
+			string := window.GetTitle();
+			IF (string # NIL) THEN COPY(string^, caption);
+			ELSE	caption := "NoTitle";
+			END;
+
+			typeDesc:=Modules.TypeOf(window);
+			COPY(caption, s); Files.SplitPath(s, path,caption);
+			Strings.AppendChar(caption,":"); 
+			Strings.Append(caption, typeDesc.mod.name); 	Strings.AppendChar(caption,".");
+			Strings.Append(caption, typeDesc.name);
+
+			NEW(node);
+			tree.SetNodeCaption(node, Strings.NewString(caption));
+			tree.AddChildNode(parent, node);
+			tree.InclNodeState(node, WMTrees.NodeExpanded);
+			tree.ExpandToRoot(node);
+		END AddNonFormWindow;
 
 		PROCEDURE Refresh(sender, data : ANY);
 		VAR root : WMTrees.TreeNode; nofWindows, i : LONGINT;
@@ -283,6 +306,9 @@ TYPE
 				FOR i := 0 TO nofWindows - 1 DO
 					IF (windows[i] # NIL) & (windows[i] IS WMComponents.FormWindow) THEN
 						AddFormWindow(windows[i](WMComponents.FormWindow), root);
+					END;
+					IF (windows[i] # NIL) & ~(windows[i] IS WMComponents.FormWindow) THEN
+						AddNonFormWindow(windows[i], root);
 					END;
 				END;
 			END;
