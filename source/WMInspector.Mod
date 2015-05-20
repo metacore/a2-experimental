@@ -242,6 +242,7 @@ TYPE
 
 		PROCEDURE AddFormWindow(window : WMComponents.FormWindow; parent : WMTrees.TreeNode);
 		VAR node : WMTrees.TreeNode; caption : ARRAY 64 OF CHAR; string : Strings.String;
+			s: ARRAY 128 OF CHAR; typeDesc:Modules.TypeDesc;
 		BEGIN
 			ASSERT((window # NIL) & (parent # NIL));
 			string := window.GetTitle();
@@ -251,8 +252,14 @@ TYPE
 				caption := "NoTitle";
 			END;
 
+			typeDesc:=Modules.TypeOf(window);
+			COPY(caption, s); Strings.AppendChar(s,":"); 
+			Strings.Append(s, typeDesc.mod.name); 	Strings.AppendChar(s,".");
+			Strings.Append(s, typeDesc.name);
+
 			NEW(node);
-			tree.SetNodeCaption(node, Strings.NewString(caption));
+			(*tree.SetNodeCaption(node, Strings.NewString(caption));*)
+			tree.SetNodeCaption(node, Strings.NewString(s));
 			tree.AddChildNode(parent, node);
 			tree.InclNodeState(node, WMTrees.NodeExpanded);
 			tree.ExpandToRoot(node);
@@ -263,6 +270,7 @@ TYPE
 
 		PROCEDURE Refresh(sender, data : ANY);
 		VAR root : WMTrees.TreeNode; nofWindows, i : LONGINT;
+
 		BEGIN
 			ASSERT(tree # NIL);
 			GetWindows(windows, nofWindows);
