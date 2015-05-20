@@ -825,6 +825,7 @@ TYPE
 			InstallPlugin;
 
 			SetNameAsString(StrPerfMonSimpleGraph);
+			SetGenerator("WMPerfMonComponents.GenPerfMonSimpleGraph");
 		END Init;
 
 		PROCEDURE InitDiagram(pluginInstance : Plugins.Plugin; index : LONGINT);

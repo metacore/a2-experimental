@@ -36,6 +36,7 @@ TYPE
 			NEW(showPercents, PrototypePbShowPercents, NIL, NIL); properties.Add(showPercents);
 			NEW(textColor, PrototypePbTextColor, NIL, NIL); properties.Add(textColor);
 			SetNameAsString(StrProgressBar);
+			SetGenerator("WMProgressComponents.GenProgressBar");
 		END Init;
 
 		PROCEDURE SetRange*(min, max : LONGINT);

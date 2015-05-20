@@ -65,6 +65,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrNumberInput);
+			SetGenerator("WMColorComponents.GenNumberInput");
 			(* properties *)
 			NEW(min, NIL, Strings.NewString("Min"), Strings.NewString("Minimal value")); properties.Add(min);
 			NEW(max, NIL, Strings.NewString("Max"), Strings.NewString("Maximal value")); properties.Add(max);
@@ -149,6 +150,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrNumericColorChooser);
+			SetGenerator("WMColorComponents.GenNumericColorChooser");
 			(* red *)
 			NEW(r); r.alignment.Set(WMComponents.AlignTop); AddInternalComponent(r);
 			r.caption.SetCaption("R"); r.min.Set(0); r.max.Set(255); r.changeHandler := NumberInputChanged;
@@ -203,6 +205,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrColorPot);
+			SetGenerator("WMColorComponents.GenColorPot");
 			onStartDrag.Add(MyStartDrag); colorChangeHandler := DefaultColorChangeHandler
 		END Init;
 
@@ -348,6 +351,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrColorChooser);
+			SetGenerator("WMColorComponents.GenColorChooser");
 			(* title *)
 			NEW(title); title.bounds.SetHeight(20); title.alignment.Set(WMComponents.AlignTop);
 			title.fillColor.Set(0CCCCCCFFH); title.SetCaption("ColorChooser"); AddInternalComponent(title);

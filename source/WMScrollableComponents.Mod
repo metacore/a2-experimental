@@ -161,6 +161,7 @@ TYPE
 		PROCEDURE & Init*;
 		BEGIN
 			Init^;
+			SetGenerator("WMScrollableComponents.GenScrollableContainer");
 			(* scrollbars *)
 			NEW(vScrollbar); vScrollbar.alignment.Set(WMComponents.AlignRight); AddInternalComponent^(vScrollbar);
 			vScrollbar.onPositionChanged.Add(ScrollbarsChanged); vScrollbar.visible.Set(FALSE);

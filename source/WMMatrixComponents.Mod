@@ -125,6 +125,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrMatrixGrid);
+			SetGenerator("WMMatrixComponents.GenMatrixGrid");
 		END Init;
 
 		PROCEDURE DrawBackground(canvas : WMGraphics.Canvas);
@@ -210,6 +211,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrMatrixGraph);
+			SetGenerator("WMMatrixComponents.GenMatrixGraph");
 			NEW(autoscaleX, PrototypeAutoscaleX, NIL, NIL); properties.Add(autoscaleX);
 			NEW(autoscaleY, PrototypeAutoscaleY, NIL, NIL); properties.Add(autoscaleY);
 			NEW(dataOrder, PrototypeDataOrder, NIL, NIL); properties.Add(dataOrder);

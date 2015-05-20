@@ -175,7 +175,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrPartitionSelector);
-
+			SetGenerator("WMPartitionsComponents.GenPartitionSelector");
 			firstAlign := TRUE;
 
 			NEW(showDetails, PrototypeShowDetails, NIL, NIL); properties.Add(showDetails);
@@ -1204,7 +1204,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrOperationSelector);
-
+			SetGenerator("WMPartitionsComponents.GenOperationSelector");
 			NEW(onSelection, SELF, Strings.NewString("onSelection"), Strings.NewString("Generates an event when an  is selected"),
 				SELF.StringToCompCommand); events.Add(onSelection);
 

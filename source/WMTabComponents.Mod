@@ -57,6 +57,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrTabs);
+			SetGenerator("WMTabComponents.GenTabControl");
 			lines := 1;
 			NEW(left);
 			left.alignment.Set(WMComponents.AlignLeft);
@@ -581,6 +582,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrTab);
+			SetGenerator("WMTabComponents.GenTab");
 			NEW(caption, NIL, StrCaption, StrCaptionDescription); properties.Add(caption);
 			caption.Set(StrNoCaption);
 			NEW(color, NIL, StrColor, StrColorDescription); properties.Add(color);
@@ -607,6 +609,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(StrTabPanel);
+			SetGenerator("WMTabComponents.GenTabPanel");
 			NEW(selection, NIL, StrSelection, StrSelectionDescription); properties.Add(selection);
 			selection.Set(StrNoSelection);
 			first := TRUE;

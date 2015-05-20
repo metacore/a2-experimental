@@ -12,6 +12,8 @@ IMPORT
 CONST
 	BufSize = 16*1024; (* internal buffer size, used for copy *)
 
+	FileNameLength = 256;
+
 	TraceCopy = 0;
 	TraceDragging = 1;
 
@@ -130,6 +132,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(GSDirectoryTree);
+			SetGenerator("WMSystemComponents.GenDirectoryTree");
 			(* new properties *)
 			NEW(currentPath, DirTreePathProt, NIL, NIL); properties.Add(currentPath);
 			(* new events *)
@@ -360,6 +363,7 @@ TYPE
 		BEGIN
 			Init^;
 			SetNameAsString(GSFileList);
+			SetGenerator("WMSystemComponents.GenFileList");
 			(* new properties *) (* it is not possible to change this property at any time but we leave it for the moment *)
 			NEW(prefixSearch, FileListPrefixSearchProt, NIL, NIL); properties.Add(prefixSearch);
 
@@ -545,7 +549,7 @@ TYPE
 		PROCEDURE Rename(sender, data : ANY);
 		VAR  d : DirEntry; rename : WMDialogs.MiniStringInput;
 			wmx, wmy, res : LONGINT;
-			name, op, np : ARRAY 128 OF CHAR;
+			name, op, np : ARRAY FileNameLength (* was 128*) OF CHAR;
 		BEGIN
 			IF popup # NIL THEN popup.Close; popup := NIL END;
 			IF (data # NIL) & (data IS SelectionWrapper) THEN
@@ -611,7 +615,7 @@ TYPE
 
 		PROCEDURE Duplicate(sender, data : ANY);
 		VAR  d : DirEntry;
-			name : ARRAY 128 OF CHAR;
+			name : ARRAY FileNameLength (* was 128*) OF CHAR;
 			res : LONGINT;
 		BEGIN
 			IF popup # NIL THEN popup.Close; popup := NIL END;
@@ -657,7 +661,7 @@ TYPE
 			writer : Streams.Writer;
 
 			PROCEDURE GetFormatFromFilename(CONST filename : ARRAY OF CHAR; VAR format : ARRAY OF CHAR);
-			VAR file : ARRAY 128 OF CHAR;
+			VAR file : ARRAY FileNameLength (* was 128*) OF CHAR;
 			BEGIN
 				IF filename = "" THEN COPY("tar", format);
 				ELSE
@@ -916,7 +920,7 @@ END Open;
 		PROCEDURE DisplayGrid*(CONST data : ARRAY OF DirEntry; noEl : LONGINT);
 		VAR i, gridindex : LONGINT;
 			d : DirEntry;
-			t : ARRAY 128 OF CHAR;
+			t : ARRAY FileNameLength (* was 128*) OF CHAR;
 		BEGIN
 			grid.model.Acquire;
 			grid.model.SetNofRows(nofRows + noEl);
@@ -963,7 +967,7 @@ END Open;
 		END ToggleProps;
 
 		PROCEDURE FillGridRow(rowNo : LONGINT; dir : DirEntry);
-		VAR t : ARRAY 128 OF CHAR;
+		VAR t : ARRAY FileNameLength (* was 128*) OF CHAR;
 		BEGIN
 			grid.model.SetCellText(0, rowNo, dir.name);
 			grid.model.SetCellData(0, rowNo, dir);
@@ -981,7 +985,7 @@ END Open;
 		END FillGridRow;
 
 		PROCEDURE PrepareList;
-		VAR i, vis : LONGINT; mask : ARRAY 128 OF CHAR; s : Strings.String;
+		VAR i, vis : LONGINT; mask : ARRAY FileNameLength (* was 128*) OF CHAR; s : Strings.String;
 		BEGIN
 			IF dir = NIL THEN RETURN END;
 			s := SELF.filter;
