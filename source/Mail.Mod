@@ -28,7 +28,7 @@ TYPE
 
 		PROCEDURE &Init*;
 		BEGIN
-			NEW(from); NEW(sender); NEW(toList); NEW(ccList); NEW(bccList); NEW(replyToList); NEW(lines)
+			NEW(from); NEW(sender); NEW(toList); NEW(ccList); NEW(bccList); NEW(replyToList); NEW(headerList); NEW(lines)
 		END Init;
 
 		PROCEDURE SetFrom*(CONST name, address : ARRAY OF CHAR);
@@ -189,3 +189,5 @@ TYPE
 	END Sender;
 
 END Mail.
+
+SystemTools.FreeDownTo Mail ~
