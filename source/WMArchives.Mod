@@ -573,6 +573,7 @@ TYPE
 			NEW(filenameEdit); filenameEdit.alignment.Set(WMComponents.AlignLeft); filenameEdit.multiLine.Set(FALSE);
 			filenameEdit.bounds.SetWidth(200); filenameEdit.fillColor.Set(0FFFFFFFFH); filenameEdit.tv.showBorder.Set(TRUE);
 			filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); filenameEdit.onEnter.Add(LoadHandler);
+			filenameEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			topToolbar.AddContent(filenameEdit);
 
 			NEW(load); load.caption.SetAOC("Load"); load.alignment.Set(WMComponents.AlignLeft); load.onClick.Add(LoadHandler);

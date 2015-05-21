@@ -62,6 +62,7 @@ TYPE
 			panel.AddContent(label);
 
 			NEW(decEd); decEd.alignment.Set(WMComponents.AlignLeft); decEd.multiLine.Set(FALSE);
+			decEd.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			decEd.bounds.SetWidth(100); decEd.onEnter.Add(FindChar);
 			decEd.fillColor.Set(LONGINT(0FFFFFFFFH)); decEd.tv.showBorder.Set(TRUE);
 			decEd.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
@@ -72,6 +73,7 @@ TYPE
 			panel.AddContent(label);
 
 			NEW(hexEd); hexEd.alignment.Set(WMComponents.AlignLeft); hexEd.multiLine.Set(FALSE);
+			hexEd.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			hexEd.bounds.SetWidth(100); hexEd.onEnter.Add(FindChar);
 			hexEd.fillColor.Set(LONGINT(0FFFFFFFFH)); hexEd.tv.showBorder.Set(TRUE);
 			hexEd.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));

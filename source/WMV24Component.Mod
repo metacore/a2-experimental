@@ -653,8 +653,10 @@ TYPE
 			toolbar.AddContent(label);
 
 			NEW(settingsEdit);
-			settingsEdit.alignment.Set(WMComponents.AlignLeft); settingsEdit.bounds.SetWidth(110);
+			settingsEdit.alignment.Set(WMComponents.AlignLeft);
+			settingsEdit.bounds.SetWidth(110);
 			settingsEdit.multiLine.Set(FALSE);
+			settingsEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			settingsEdit.fillColor.Set(WMGraphics.White);
 			settingsEdit.tv.borders.Set(WMRectangles.MakeRect(4, 3, 2, 2));
 			settingsEdit.tv.showBorder.Set(TRUE);
@@ -781,6 +783,7 @@ TYPE
 			NEW(sendCommandEditor);
 			sendCommandEditor.alignment.Set(WMComponents.AlignClient);
 			sendCommandEditor.multiLine.Set(FALSE);
+			sendCommandEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			sendCommandEditor.fillColor.Set(WMGraphics.White);
 			sendCommandEditor.tv.borders.Set(WMRectangles.MakeRect(4, 3, 2, 2));
 			sendCommandEditor.tv.showBorder.Set(TRUE);
