@@ -243,6 +243,11 @@ TYPE
 	LongintArray = POINTER TO ARRAY OF LONGINT;
 	Operation = RECORD op, pos, len : LONGINT END;
 	Operations  = POINTER TO ARRAY OF Operation;
+	
+	TextSelection*=OBJECT
+		VAR text* : Texts.Text; 
+		from*, to* : Texts.TextPosition;
+	END TextSelection;
 
 	TextPositionKeeper* = OBJECT(Texts.TextPosition);
 	VAR positions : LongintArray;
