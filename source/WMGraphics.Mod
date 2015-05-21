@@ -17,9 +17,13 @@ CONST
 	(** FontStyles *)
 	FontBold* = 0; FontItalic* = 1;
 
-	Black* = 0FFH; White* = LONGINT(0FFFFFFFFH); Gray*=LONGINT(0888888FFH);
-	Red* = LONGINT(0FF0000FFH); Green* = 000FF00FFH; Blue* = 0FFFFH;
-	Yellow* = LONGINT(0FFFF00FFH); Magenta* = LONGINT(0FF00FFFFH); Cyan* = 00FFFFFFH;
+	Black* = 0FFH; White* = LONGINT(0FFFFFFFFH); 
+	Gray*=LONGINT(0777777FFH); 
+	Red* = LONGINT(0FF0000FFH); 
+	Green* = 000FF00FFH; Blue* = 0FFFFH;
+	Yellow* = LONGINT(0FFFF00FFH); 
+	Magenta* = LONGINT(0FF00FFFFH); 
+	Cyan* = 00FFFFFFH;
 
 
 TYPE
@@ -362,18 +366,15 @@ TYPE
 
 		PROCEDURE &New*(img : Raster.Image);
 		BEGIN
-				SELF.img := img;
-
-				
-				bounds := MakeRectangle(0, 0, img.width, img.height);
-				SetLimits(MakeRectangle(0, 0, img.width, img.height ));
-				clipRect := bounds;
-				clipMode := { ClipRect };
-				
-				(* filling *)
-				height := img.height; NEW(edges, height);
-				SetFont(GetDefaultFont());
-				generator:=Strings.NewString("WMGraphics.GenCanvas");
+			SELF.img := img;				
+			bounds := MakeRectangle(0, 0, img.width, img.height);
+			SetLimits(bounds);
+			clipRect := bounds;
+			clipMode := { ClipRect };
+			(* filling *)
+			height := img.height; NEW(edges, height);
+			SetFont(GetDefaultFont());
+			generator:=Strings.NewString("WMGraphics.GenCanvas");
 		END New;
 
 		(* Not thread-safe!!! *)
@@ -605,6 +606,16 @@ PROCEDURE RGBAToColor*(r, g, b, a: LONGINT): Color;
 BEGIN
 	RETURN r * 1000000H + g * 10000H + b * 100H + a
 END RGBAToColor;
+
+PROCEDURE Dark*(color:Color):Color;
+BEGIN
+	RETURN LONGINT((color MOD 100000000H+0FFH) DIV 2);
+END Dark;
+
+PROCEDURE Light*(color:Color):Color;
+BEGIN
+	RETURN LONGINT((color MOD 100000000H + 0FFFFFFFFH MOD 100000000H) DIV 2);
+END Light;
 
 PROCEDURE CheckImage(obj: ANY; VAR cont: BOOLEAN);
 BEGIN
