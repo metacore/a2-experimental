@@ -9,9 +9,14 @@ TYPE
 	Recipient* = OBJECT
 		VAR name-, address- : MailAddress;
 	END Recipient;
+	
+	Header* = OBJECT
+		VAR id-: ARRAY 128 OF CHAR;
+			content-: ARRAY 128 OF CHAR;
+	END Header;
 
-	Line *= OBJECT
-	VAR data* : POINTER TO ARRAY OF CHAR;
+	Line*= OBJECT
+		VAR data* : POINTER TO ARRAY OF CHAR;
 	END Line;
 
 	Message* = OBJECT
@@ -19,7 +24,7 @@ TYPE
 		subject : ARRAY 128 OF CHAR;
 		date : ARRAY 64 OF CHAR;
 		from, sender : Recipient;
-		toList, ccList, bccList, lines, replyToList : Classes.List;
+		toList, ccList, bccList, lines, replyToList, headerList : Classes.List;
 
 		PROCEDURE &Init*;
 		BEGIN
@@ -125,6 +130,23 @@ TYPE
 			p := bccList.GetItem(nr); old := p(Recipient);
 			COPY(old.name, name); COPY(old.address, address)
 		END GetBcc;
+		
+		PROCEDURE AddHeader*(CONST id, content:ARRAY OF CHAR);
+		VAR new : Header;
+		BEGIN NEW(new); COPY(id, new.id); COPY(content, new.content); headerList.Add(new)
+		END AddHeader;
+
+		PROCEDURE GetNofHeaders*():LONGINT;
+		BEGIN RETURN headerList.GetCount()
+		END GetNofHeaders;
+
+		PROCEDURE GetHeader*(nr : LONGINT; VAR id, content: ARRAY OF CHAR);
+		VAR old : Header; p : ANY;
+		BEGIN
+			ASSERT((nr >= 0) & (nr < headerList.GetCount()));
+			p := headerList.GetItem(nr); old := p(Header);
+			COPY(old.id, id); COPY(old.content, content)
+		END GetHeader;
 
 		PROCEDURE AddLine*(CONST x: ARRAY OF CHAR);
 		VAR l, i : LONGINT; nl : Line;

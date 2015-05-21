@@ -166,8 +166,8 @@ TYPE
 		PROCEDURE SendComplete*(m: Mail.Message; VAR result : LONGINT);
 		VAR i: LONGINT;
 			name, address : Mail.MailAddress;
-			date : ARRAY 64 OF CHAR;
-			subject : ARRAY 256 OF CHAR;
+			date, id : ARRAY 64 OF CHAR;
+			subject, content : ARRAY 256 OF CHAR;
 			l : Mail.Line;
 		BEGIN {EXCLUSIVE}
 			PrepareToSend(m, result);
@@ -260,6 +260,14 @@ TYPE
 						w.Ln;
 					END;
 				END;
+				
+				IF m.GetNofHeaders() > 0 THEN
+					FOR i := 0 TO m.GetNofHeaders() - 1 DO
+						m.GetHeader(i, id, content);
+						w.String(id); w.String(" : "); w.String(content); w.Ln;
+					END;
+				END;
+				
 				w.Ln;
 
 				FOR i := 0 TO m.GetNofLines() - 1 DO
