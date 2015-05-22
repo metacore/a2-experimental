@@ -110,14 +110,13 @@ TYPE
 
 			IF meta THEN
 				manager.lock.AcquireWrite;
-				IF ((0 IN lastKeys) # (0 IN keys)) & (0 IN keys) THEN
-					w := manager(WindowManager).GetPositionOwnerIntern(ENTIER(range.l + x * inffx), ENTIER(range.t + y * inffy), SELF);
-					ZoomToWindow(w);
-					ignore := TRUE
-				ELSIF ((2 IN lastKeys) # (2 IN keys)) & (2 IN keys) THEN
-					w := manager(WindowManager).GetPositionOwnerIntern(ENTIER(range.l + x * inffx), ENTIER(range.t + y * inffy), SELF);
-					SetInitialWindowBounds(w);
-					ignore := TRUE
+				w := manager(WindowManager).GetPositionOwnerIntern(ENTIER(range.l + x * inffx), ENTIER(range.t + y * inffy), SELF);
+				IF (w # NIL) & (w # manager(WindowManager).bottom) THEN
+					IF ((0 IN lastKeys) # (0 IN keys)) & (0 IN keys) THEN
+						ZoomToWindow(w); ignore := TRUE
+					ELSIF ((2 IN lastKeys) # (2 IN keys)) & (2 IN keys) THEN
+						SetInitialWindowBounds(w);  ignore := TRUE
+					END;					
 				END;
 				IF (dz # 0) THEN
 					navig := TRUE;
@@ -158,6 +157,7 @@ TYPE
 					lastx := x; lasty := y;
 					navig := TRUE; manager.RefreshView(SELF)
 				END;
+
 				manager.lock.ReleaseWrite
 			ELSE
 				IF ~internnavig THEN IF navig THEN navig := FALSE; manager.RefreshView(SELF) END END;
@@ -177,7 +177,6 @@ TYPE
 		VAR cur : WM.DecorList; r : Rectangle;
 		BEGIN
 			ASSERT(manager.lock.HasWriteLock());
-			IF (manager IS WindowManager)  & (w = manager(WindowManager).bottom) THEN RETURN END;
 			r := w.bounds;
 			IF w.master # NIL THEN
 				w := w.master;
@@ -1114,10 +1113,8 @@ TYPE
 			END;
 
 			(* if no keys are pressed, the new pointer owner is the position owner *)
-			IF (keys = { }) OR (pointerOwner = NIL) THEN newOwner := GetPositionOwnerIntern(msg.x, msg.y, view)
-			ELSE newOwner := pointerOwner
-			END;
-
+			IF (keys = { })THEN newOwner := GetPositionOwnerIntern(msg.x, msg.y, view)END;
+			IF  newOwner = NIL THEN newOwner := pointerOwner END;
 			(* keys changed *)
 			IF keys # pointerKeys THEN
 				kd := 0; FOR i := 0 TO 31 DO IF i IN keys THEN INC(kd) END END;
