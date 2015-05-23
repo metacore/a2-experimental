@@ -48,6 +48,7 @@ TYPE
 				NEW(l); l.bounds.SetWidth(100); l.alignment.Set(WMComponents.AlignLeft); l.caption.SetAOC(caption); g.AddContent(l);
 				NEW(e); e.alignment.Set(WMComponents.AlignClient); g.AddContent(e);
 				e.multiLine.Set(FALSE);
+				e.tv.textAlignV.Set(WMGraphics.AlignCenter);
 				parent.AddContent(g)
 			END AddLabelEdit;
 
@@ -77,6 +78,7 @@ TYPE
 			AddLabelEdit(textInfoPanel, koreanEdit, "Korean : ");
 			AddLabelEdit(textInfoPanel, definitionEdit, "Definition : ");
 			definitionEdit.multiLine.Set(FALSE);
+			definitionEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			AddLabelEdit(textInfoPanel, codeEdit, "Code : ");
 			codeEdit.onEnter.Add(NewCode);
 

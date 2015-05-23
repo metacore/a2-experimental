@@ -1641,6 +1641,7 @@ TYPE
 			content.AddContent(locationPanel);
 
 			NEW(locationEdit); locationEdit.bearing.Set(bearing); locationEdit.alignment.Set(WMComponents.AlignClient); locationEdit.bounds.SetHeight(20);  locationEdit.multiLine.Set(FALSE);
+			locationEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			locationEdit.fillColor.Set(White); locationEdit.tv.showBorder.Set(TRUE);
 			locationPanel.AddContent(locationEdit);
 
@@ -1651,6 +1652,7 @@ TYPE
 			content.AddContent(label2);
 
 			NEW(idEdit); idEdit.bearing.Set(bearing); idEdit.alignment.Set(WMComponents.AlignTop); idEdit.bounds.SetHeight(20); idEdit.multiLine.Set(FALSE);
+			idEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			idEdit.fillColor.Set(White); idEdit.tv.showBorder.Set(TRUE);
 			content.AddContent(idEdit);
 
@@ -1737,6 +1739,7 @@ TYPE
 			AddContent(label);
 
 			NEW(locationEdit); locationEdit.bearing.Set(bearing); locationEdit.alignment.Set(WMComponents.AlignTop); locationEdit.bounds.SetHeight(20); locationEdit.multiLine.Set(FALSE);
+			lacationEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			locationEdit.fillColor.Set(White); locationEdit.tv.showBorder.Set(TRUE);
 			AddContent(locationEdit);
 
@@ -1797,6 +1800,7 @@ TYPE
 			AddContent(label);
 
 			NEW(locationEdit); locationEdit.bearing.Set(bearing); locationEdit.alignment.Set(WMComponents.AlignTop); locationEdit.bounds.SetHeight(20); locationEdit.multiLine.Set(FALSE);
+			locationEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			locationEdit.fillColor.Set(White); locationEdit.tv.showBorder.Set(TRUE);
 			AddContent(locationEdit);
 
@@ -1850,6 +1854,7 @@ TYPE
 			AddContent(locationPanel);
 
 			NEW(locationEdit); locationEdit.bearing.Set(bearing); locationEdit.alignment.Set(WMComponents.AlignClient); locationEdit.bounds.SetHeight(20); locationEdit.multiLine.Set(FALSE);
+			locationEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			locationEdit.fillColor.Set(White); locationEdit.tv.showBorder.Set(TRUE);
 			locationPanel.AddContent(locationEdit);
 
@@ -2052,6 +2057,7 @@ TYPE
 			AddContent(label);
 
 			NEW(locationEdit); locationEdit.bearing.Set(bearing); locationEdit.alignment.Set(WMComponents.AlignTop); locationEdit.bounds.SetHeight(20); locationEdit.multiLine.Set(FALSE);
+			locationEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			locationEdit.fillColor.Set(White); locationEdit.tv.showBorder.Set(TRUE);
 			AddContent(locationEdit);
 

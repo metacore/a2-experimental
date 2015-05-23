@@ -1975,6 +1975,7 @@ TYPE
 			leftPanel.AddContent(label);
 			NEW(efx); efx.bounds.SetHeight(20); efx.alignment.Set(WMComponents.AlignTop);
 			efx.tv.showBorder.Set(TRUE); efx.multiLine.Set(FALSE); efx.fillColor.Set(0FFFFFFFFH);
+			efx.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efx.onEnter.Add(SetValueHandler); efx.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			rightPanel.AddContent(efx);
 
@@ -1983,6 +1984,7 @@ TYPE
 			leftPanel.AddContent(label);
 			NEW(efy); efy.bounds.SetHeight(20); efy.alignment.Set(WMComponents.AlignTop);
 			efy.tv.showBorder.Set(TRUE); efy.multiLine.Set(FALSE); efy.fillColor.Set(0FFFFFFFFH);
+			efy.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efy.onEnter.Add(SetValueHandler); efy.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			rightPanel.AddContent(efy);
 
@@ -1991,6 +1993,7 @@ TYPE
 			leftPanel.AddContent(label);
 			NEW(efw); efw.bounds.SetHeight(20); efw.alignment.Set(WMComponents.AlignTop);
 			efw.tv.showBorder.Set(TRUE); efw.multiLine.Set(FALSE); efw.fillColor.Set(0FFFFFFFFH);
+			efw.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efw.onEnter.Add(SetValueHandler); efw.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			rightPanel.AddContent(efw);
 
@@ -1999,6 +2002,7 @@ TYPE
 			leftPanel.AddContent(label);
 			NEW(efh); efh.bounds.SetHeight(20); efh.alignment.Set(WMComponents.AlignTop);
 			efh.tv.showBorder.Set(TRUE); efh.multiLine.Set(FALSE); efh.fillColor.Set(0FFFFFFFFH);
+			efh.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efh.onEnter.Add(SetValueHandler); efh.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			rightPanel.AddContent(efh);
 
@@ -2015,6 +2019,7 @@ TYPE
 			leftPanel.AddContent(label);
 			NEW(efn); efn.bounds.SetHeight(20); efn.alignment.Set(WMComponents.AlignTop);
 			efn.tv.showBorder.Set(TRUE); efn.multiLine.Set(FALSE); efn.fillColor.Set(0FFFFFFFFH);
+			efn.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efn.onEnter.Add(SetValueHandler); efn.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			rightPanel.AddContent(efn);
 
@@ -2023,6 +2028,7 @@ TYPE
 			(* leftPanel.AddContent(label); *)
 			NEW(efs); efs.bounds.SetHeight(20); efs.alignment.Set(WMComponents.AlignTop);
 			efs.tv.showBorder.Set(TRUE); efs.multiLine.Set(FALSE); efs.fillColor.Set(0FFFFFFFFH);
+			efs.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efs.onEnter.Add(SetValueHandler); efs.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			(* rightPanel.AddContent(efs); *)
 
@@ -2031,6 +2037,7 @@ TYPE
 			(* leftPanel.AddContent(label); *)
 			NEW(eftw); eftw.bounds.SetHeight(20); eftw.alignment.Set(WMComponents.AlignTop);
 			eftw.tv.showBorder.Set(TRUE); eftw.multiLine.Set(FALSE); eftw.fillColor.Set(0FFFFFFFFH);
+			eftw.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			eftw.onEnter.Add(SetValueHandler); eftw.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			(* rightPanel.AddContent(eftw);	*)
 
@@ -2039,6 +2046,7 @@ TYPE
 			(* leftPanel.AddContent(label); *)
 			NEW(efwt); efwt.bounds.SetHeight(20); efwt.alignment.Set(WMComponents.AlignTop);
 			efwt.tv.showBorder.Set(TRUE); efwt.multiLine.Set(FALSE); efwt.fillColor.Set(0FFFFFFFFH);
+			efwt.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efwt.onEnter.Add(SetValueHandler); efwt.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			(* rightPanel.AddContent(efwt); *)
 
@@ -2047,6 +2055,7 @@ TYPE
 			(* leftPanel.AddContent(label); *)
 			NEW(efwb); efwb.bounds.SetHeight(20); efwb.alignment.Set(WMComponents.AlignTop);
 			efwb.tv.showBorder.Set(TRUE); efwb.multiLine.Set(FALSE); efwb.fillColor.Set(0FFFFFFFFH);
+			efwb.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efwb.onEnter.Add(SetValueHandler); efwb.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			(* rightPanel.AddContent(efwb); *)
 
@@ -2055,6 +2064,7 @@ TYPE
 			(* leftPanel.AddContent(label); *)
 			NEW(efwl); efwl.bounds.SetHeight(20); efwl.alignment.Set(WMComponents.AlignTop);
 			efwl.tv.showBorder.Set(TRUE); efwl.multiLine.Set(FALSE); efwl.fillColor.Set(0FFFFFFFFH);
+			efwl.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efwl.onEnter.Add(SetValueHandler); efwl.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			(* rightPanel.AddContent(efwl); *)
 
@@ -2063,6 +2073,7 @@ TYPE
 			(* leftPanel.AddContent(label); *)
 			NEW(efwr); efwr.bounds.SetHeight(20); efwr.alignment.Set(WMComponents.AlignTop);
 			efwr.tv.showBorder.Set(TRUE); efwr.multiLine.Set(FALSE); efwr.fillColor.Set(0FFFFFFFFH);
+			efwr.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			efwr.onEnter.Add(SetValueHandler); efwr.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			(* rightPanel.AddContent(efwr); *)
 
@@ -2373,6 +2384,7 @@ TYPE
 
 			NEW(objectWidthField); objectWidthField.bounds.SetHeight(20); objectWidthField.alignment.Set(WMComponents.AlignTop);
 			objectWidthField.tv.showBorder.Set(TRUE); objectWidthField.multiLine.Set(FALSE); objectWidthField.fillColor.Set(0FFFFFFFFH);
+			objectWidthField.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editorsPanel.AddContent(objectWidthField);
 
 			NEW(label); label.bounds.SetHeight(20); label.alignment.Set(WMComponents.AlignTop); label.SetCaption(" Object Height [mm]:");
@@ -2380,6 +2392,7 @@ TYPE
 
 			NEW(objectHeightField); objectHeightField.bounds.SetHeight(20); objectHeightField.alignment.Set(WMComponents.AlignTop);
 			objectHeightField.tv.showBorder.Set(TRUE); objectHeightField.multiLine.Set(FALSE); objectHeightField.fillColor.Set(0FFFFFFFFH);
+			objectHeghtField.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editorsPanel.AddContent(objectHeightField);
 
 			RETURN panel;

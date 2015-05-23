@@ -2869,6 +2869,7 @@ TYPE
 			panel2.AddContent(label); label.bounds.SetWidth(labelWidth); label.textColor.Set(0000000FFH);
 			NEW(chain); chain.alignment.Set(WMComponents.AlignClient);
 			chain.tv.showBorder.Set(TRUE); chain.multiLine.Set(FALSE); chain.fillColor.Set(0FFFFFFFFH);
+			chain.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			chain.onEnter.Add(SetValueHandler); chain.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			chain.SetAsString("none");
 			panel2.AddContent(chain);
@@ -2879,6 +2880,7 @@ TYPE
 			panel2.AddContent(label); label.bounds.SetWidth(labelWidth); label.textColor.Set(0000000FFH);
 			NEW(vAlign); vAlign.alignment.Set(WMComponents.AlignClient);
 			vAlign.tv.showBorder.Set(TRUE); vAlign.multiLine.Set(FALSE); vAlign.fillColor.Set(0FFFFFFFFH);
+			vAlign.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			vAlign.onEnter.Add(SetValueHandler); vAlign.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			vAlign.SetAsString("Top");
 			panel2.AddContent(vAlign);

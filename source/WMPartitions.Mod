@@ -142,6 +142,7 @@ TYPE
 			NEW(prefixEditor);
 			prefixEditor.bounds.SetWidth(40); prefixEditor.bounds.SetHeight(ButtonHeight); prefixEditor.alignment.Set(WMComponents.AlignLeft);
 			prefixEditor.multiLine.Set(FALSE);
+			prefixEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			IF ~UseSkinColors THEN prefixEditor.fillColor.Set(WMGraphics.White); END;
 			prefixEditor.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); prefixEditor.tv.showBorder.Set(TRUE);
 			mountPanel.AddInternalComponent(prefixEditor);
@@ -155,6 +156,7 @@ TYPE
 			NEW(fsEditor);
 			fsEditor.bounds.SetWidth(60); fsEditor.bounds.SetHeight(20); fsEditor.alignment.Set(WMComponents.AlignLeft);
 			fsEditor.multiLine.Set(FALSE);
+			fsEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			IF ~UseSkinColors THEN fsEditor.fillColor.Set(WMGraphics.White); END;
 			fsEditor.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); fsEditor.tv.showBorder.Set(TRUE);
 			mountPanel.AddInternalComponent(fsEditor);
@@ -171,6 +173,7 @@ TYPE
 			NEW(cacheSizeEditor);
 			cacheSizeEditor.bounds.SetWidth(40); cacheSizeEditor.bounds.SetHeight(ButtonHeight); cacheSizeEditor.alignment.Set(WMComponents.AlignLeft);
 			cacheSizeEditor.multiLine.Set(FALSE);
+			cacheSizeEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			IF ~UseSkinColors THEN cacheSizeEditor.fillColor.Set(WMGraphics.White); END;
 			cacheSizeEditor.SetAsString(DefaultFatCacheSize);
 			cacheSizeEditor.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); cacheSizeEditor.tv.showBorder.Set(TRUE); cacheSizeEditor.visible.Set(FALSE);
@@ -944,6 +947,7 @@ TYPE
 			editorKey.bounds.SetExtents(CeKeyWidth, ButtonHeight);
 			editorKey.bounds.SetLeft(MarginH); editorKey.bounds.SetTop(MarginV);
 			editorKey.multiLine.Set(FALSE);
+			editorKey.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			IF ~UseSkinColors THEN editorKey.fillColor.Set(WMGraphics.White); END;
 			editorKey.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); editorKey.tv.showBorder.Set(TRUE);
 			editPanel.AddInternalComponent(editorKey);
@@ -952,6 +956,7 @@ TYPE
 			editorValue.bounds.SetExtents(width - CeKeyWidth - 2*MarginH - 2*MarginH, ButtonHeight);
 			editorValue.bounds.SetLeft(CeKeyWidth + MarginH); editorValue.bounds.SetTop(MarginV);
 			editorValue.multiLine.Set(FALSE);
+			editorValue.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			IF ~UseSkinColors THEN editorValue.fillColor.Set(WMGraphics.White); END;
 			editorValue.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); editorValue.tv.showBorder.Set(TRUE);
 			editPanel.AddInternalComponent(editorValue);
@@ -1026,6 +1031,7 @@ TYPE
 			editorPartition.bounds.SetExtents(50, ButtonHeight);
 			editorPartition.bounds.SetLeft(left); editorPartition.bounds.SetTop(MarginV);
 			editorPartition.multiLine.Set(FALSE);
+			editorPartition.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			IF ~UseSkinColors THEN editorPartition.fillColor.Set(WMGraphics.White); END;
 			editorPartition.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); editorPartition.tv.showBorder.Set(TRUE);
 			opPanel.AddInternalComponent(editorPartition);
@@ -1046,6 +1052,7 @@ TYPE
 			editorFile.bounds.SetExtents(width - fileLeft - MarginH - MarginH, ButtonHeight);
 			editorFile.bounds.SetLeft(left); editorFile.bounds.SetTop(MarginV);
 			editorFile.multiLine.Set(FALSE);
+			editorFile.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			IF ~UseSkinColors THEN editorFile.fillColor.Set(WMGraphics.White); END;
 			editorFile.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1)); editorFile.tv.showBorder.Set(TRUE);
 			editorFile.SetAsString("config.txt"); (* default file name *)

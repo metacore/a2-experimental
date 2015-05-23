@@ -1141,6 +1141,7 @@ TYPE
 				NEW(filenameEdit); filenameEdit.alignment.Set(WMComponents.AlignClient);
 				filenameEdit.multiLine.Set(FALSE); filenameEdit.bounds.SetWidth(200);
 				filenameEdit.fillColor.Set(0FFFFFFFFH);
+				filenameEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 				filenameEdit.tv.showBorder.Set(TRUE);
 				filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 				filenameEdit.tv.commandCaller := SELF;
@@ -1195,6 +1196,7 @@ TYPE
 
 				NEW(optionsEdit); optionsEdit.tv.showBorder.Set(TRUE); optionsEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 				optionsEdit.alignment.Set(WMComponents.AlignClient); optionsEdit.multiLine.Set(FALSE);
+				optionsEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 				optionsEdit.bounds.SetWidth(80); optionsEdit.fillColor.Set(0FFFFFFFFH);
 				optionsEdit.SetAsString(settings.defaultCompilerOptions);
 				toolbar.AddContent(optionsEdit);
@@ -1213,6 +1215,7 @@ TYPE
 				NEW(positionEdit); positionEdit.tv.showBorder.Set(TRUE); positionEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 
 				positionEdit.alignment.Set(WMComponents.AlignLeft); positionEdit.multiLine.Set(FALSE);
+				positionEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 				positionEdit.bounds.SetWidth(80); positionEdit.fillColor.Set(0FFFFFFFFH); positionEdit.onEnter.Add(PositionHandler);
 				statusbar.AddContent(positionEdit);
 

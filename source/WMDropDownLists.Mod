@@ -370,6 +370,7 @@ TYPE
 
 			NEW(editor); editor.alignment.Set(WMComponents.AlignClient);
 			editor.multiLine.Set(FALSE);
+			editor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editor.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1));
 			editor.tv.showBorder.Set(TRUE);
 			editor.tv.SetExtKeyEventHandler(KeyPressed);

@@ -178,6 +178,7 @@ TYPE
 			leftPanel.AddContent(label);
 			NEW(fileEdit); fileEdit.bounds.SetHeight(20); fileEdit.alignment.Set(WMComponents.AlignTop);
 			fileEdit.tv.showBorder.Set(TRUE); fileEdit.multiLine.Set(FALSE); fileEdit.fillColor.Set(0FFFFFFFFH);
+			fileEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			fileEdit.onEnter.Add(SetValueHandler); fileEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			fileEdit.SetAsString(theCaller.filename);
 			rightPanel.AddContent(fileEdit);

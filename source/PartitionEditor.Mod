@@ -100,6 +100,7 @@ TYPE
 			deviceNameEditor.bounds.SetWidth(100);
 			deviceNameEditor.tv.showBorder.Set(TRUE);
 			deviceNameEditor.multiLine.Set(FALSE);
+			deviceNameEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			deviceNameEditor.fillColor.Set(WMGraphics.White);
 			toolbar.AddContent(deviceNameEditor);
 
@@ -112,6 +113,7 @@ TYPE
 			blockNumberEditor.bounds.SetWidth(100);
 			blockNumberEditor.tv.showBorder.Set(TRUE);
 			blockNumberEditor.multiLine.Set(FALSE);
+			blockNumberEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			blockNumberEditor.fillColor.Set(WMGraphics.White);
 			toolbar.AddContent(blockNumberEditor);
 

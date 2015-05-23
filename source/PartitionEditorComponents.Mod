@@ -334,6 +334,7 @@ BEGIN
 	editor.alignment.Set(WMComponents.AlignLeft);
 	editor.bounds.SetWidth(width);
 	editor.multiLine.Set(FALSE);
+	editor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 	editor.tv.showBorder.Set(TRUE);
 END CreateEditor;
 

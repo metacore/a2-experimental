@@ -51,6 +51,7 @@ TYPE
 			NEW(l1); l1.bounds.SetExtents(150, 20); l1.SetCaption("Range Start:"); l1.alignment.Set(WMComponents.AlignLeft);
 			NEW(startEdit); startEdit.bounds.SetExtents(200, 20); startEdit.SetAsString("1100"); startEdit.alignment.Set(WMComponents.AlignLeft);
 			startEdit.multiLine.Set(FALSE);
+			startEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			toolbar.AddContent(l1); toolbar.AddContent(startEdit);
 
 			NEW(right); right.alignment.Set(WMComponents.AlignClient); right.fillColor.Set(0); mainPanel.AddContent(right);

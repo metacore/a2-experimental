@@ -2326,6 +2326,7 @@ TYPE
 		BEGIN
 			NEW(editor);
 			editor.multiLine.Set(FALSE);
+			editor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editor.fillColor.Set(0FFFFFFFFH);
 			editor.tv.showBorder.Set(TRUE);
 			editor.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));

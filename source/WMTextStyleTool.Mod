@@ -383,6 +383,7 @@ TYPE
 			PROCEDURE AE(panel : WMStandardComponents.Panel; edtr : WMEditors.Editor);
 			BEGIN
 				edtr.alignment.Set(WMComponents.AlignClient); edtr.multiLine.Set(FALSE); edtr.fillColor.Set(0FFFFFF88H); edtr.tv.showBorder.Set(TRUE);
+				edtr.tv.textAlignV.Set(WMGraphics.AlignCenter);
 				edtr.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); edtr.tv.defaultTextBgColor.Set(0FFFFFF88H);
 				panel.AddContent(edtr)
 			END AE;
@@ -675,6 +676,7 @@ TYPE
 			BEGIN
 				NEW(editor); editor.alignment.Set(WMComponents.AlignClient);
 				editor.multiLine.Set(FALSE); editor.fillColor.Set(0FFFFFFFFH); editor.tv.showBorder.Set(TRUE);
+				editor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 				editor.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); editor.onEnter.Add(UpdateValueHandler);
 				RETURN editor
 			END CreateEditor;

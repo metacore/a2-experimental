@@ -147,6 +147,7 @@ TYPE
 			FillFirstMountedFS(filledPathString);
 			NEW(pathEdit); pathEdit.SetAsString(filledPathString); pathEdit.alignment.Set(WMComponents.AlignLeft);
 			pathEdit.bounds.SetWidth(300); pathEdit.multiLine.Set(FALSE);
+			pathEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			pathEdit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1));
 			pathEdit.tv.showBorder.Set(TRUE);
 			pathEdit.fillColor.Set(LONGINT(0FFFFFFFFH));
@@ -164,6 +165,7 @@ TYPE
 
 			NEW(fmaskEdit); fmaskEdit.alignment.Set(WMComponents.AlignLeft);
 			fmaskEdit.bounds.SetWidth(300); fmaskEdit.multiLine.Set(FALSE);
+			fmaskEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			fmaskEdit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1));
 			fmaskEdit.tv.showBorder.Set(TRUE);
 			fmaskEdit.fillColor.Set(LONGINT(0FFFFFFFFH));
@@ -176,6 +178,7 @@ TYPE
 
 			NEW(contentEdit); contentEdit.alignment.Set(WMComponents.AlignLeft);
 			contentEdit.bounds.SetWidth(300); contentEdit.multiLine.Set(FALSE);
+			contentEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			contentEdit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 1, 1));
 			contentEdit.tv.showBorder.Set(TRUE);
 			contentEdit.fillColor.Set(LONGINT(0FFFFFFFFH));

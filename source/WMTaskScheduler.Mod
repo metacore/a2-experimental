@@ -306,6 +306,7 @@ TYPE
 			BEGIN
 				NEW(editor); editor.alignment.Set(WMComponents.AlignLeft);
 				editor.multiLine.Set(FALSE);
+				editor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 				editor.tv.showBorder.Set(TRUE);
 				editor.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			END CreateEditor;
@@ -766,6 +767,7 @@ TYPE
 
 			NEW(filenameEditor); filenameEditor.alignment.Set(WMComponents.AlignClient);
 			filenameEditor.multiLine.Set(FALSE);
+			filenameEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filenameEditor.tv.showBorder.Set(TRUE);
 			filenameEditor.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			filenameEditor.SetAsString("Tasks.txt");

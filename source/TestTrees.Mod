@@ -46,6 +46,7 @@ TYPE
 			editor.bounds.SetHeight(30);
 			editor.alignment.Set(WMComponents.AlignTop);
 			editor.multiLine.Set(FALSE);
+			editor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editor.onEnter.Add(RenameNode);
 			panel.AddContent(editor);
 

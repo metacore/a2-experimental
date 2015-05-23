@@ -58,6 +58,7 @@ TYPE
 
 			NEW(filename); filename.bounds.SetHeight(25); filename.alignment.Set(WMComponents.AlignTop);
 			filename.multiLine.Set(FALSE); filename.fillColor.Set(LONGINT(0FFFFFFFFH)); filename.tv.showBorder.Set(TRUE);
+			filename.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filename.bearing.Set(WMRectangles.MakeRect(10,10,10,10));
 			ret.AddContent(filename);
 
@@ -166,6 +167,7 @@ TYPE
 
 			NEW(filename); filename.bounds.SetHeight(25); filename.alignment.Set(WMComponents.AlignTop);
 			filename.multiLine.Set(FALSE); filename.fillColor.Set(LONGINT(0FFFFFFFFH)); filename.tv.showBorder.Set(TRUE);
+			filename.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filename.bearing.Set(WMRectangles.MakeRect(10,10,10,10));
 			ret.AddContent(filename);
 
@@ -377,6 +379,7 @@ TYPE
 			NEW(subject);
 			subject.alignment.Set(WMComponents.AlignClient);
 			subject.multiLine.Set(FALSE);
+			subject.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			subject.tv.showBorder.Set(TRUE);
 			p.AddContent(subject);
 			headerPanel.AddContent(p);
@@ -395,6 +398,7 @@ TYPE
 			NEW(date);
 			date.alignment.Set(WMComponents.AlignClient);
 			date.multiLine.Set(FALSE);
+			date.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			date.tv.showBorder.Set(TRUE);
 			p.AddContent(date);
 			headerPanel.AddContent(p);
@@ -886,6 +890,7 @@ TYPE
 			p.AddContent(label);
 			NEW(subject); subject.bounds.SetWidth(300); subject.alignment.Set(WMComponents.AlignClient);
 			subject.multiLine.Set(FALSE); subject.fillColor.Set(LONGINT(0FFFFFFFFH)); subject.tv.showBorder.Set(TRUE);
+			subject.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			p.AddContent(subject);
 
 			NEW(p);
@@ -898,6 +903,7 @@ TYPE
 			p.AddContent(label);
 			NEW(from); from.bounds.SetWidth(300); from.alignment.Set(WMComponents.AlignClient);
 			from.multiLine.Set(FALSE); from.fillColor.Set(LONGINT(0FFFFFFFFH)); from.tv.showBorder.Set(TRUE);
+			from.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			p.AddContent(from);
 
 			NEW(p);
@@ -910,6 +916,7 @@ TYPE
 			p.AddContent(label);
 			NEW(text); text.bounds.SetWidth(300); text.alignment.Set(WMComponents.AlignClient);
 			text.multiLine.Set(FALSE); text.fillColor.Set(LONGINT(0FFFFFFFFH)); text.tv.showBorder.Set(TRUE);
+			text.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			p.AddContent(text);
 
 			NEW(p);
@@ -922,6 +929,7 @@ TYPE
 			p.AddContent(label);
 			NEW(minSize); minSize.bounds.SetWidth(100); minSize.alignment.Set(WMComponents.AlignLeft);
 			minSize.multiLine.Set(FALSE); minSize.fillColor.Set(LONGINT(0FFFFFFFFH)); minSize.tv.showBorder.Set(TRUE);
+			minSize.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			p.AddContent(minSize);
 
 			NEW(label); label.bounds.SetWidth(50); label.alignment.Set(WMComponents.AlignLeft);
@@ -933,6 +941,7 @@ TYPE
 			p.AddContent(label);
 			NEW(maxSize); maxSize.bounds.SetWidth(100); maxSize.alignment.Set(WMComponents.AlignLeft);
 			maxSize.multiLine.Set(FALSE); maxSize.fillColor.Set(LONGINT(0FFFFFFFFH)); maxSize.tv.showBorder.Set(TRUE);
+			maxSize.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			p.AddContent(maxSize);
 
 			NEW(p);
@@ -971,18 +980,21 @@ TYPE
 			p.AddContent(label);
 			NEW(day); day.bounds.SetWidth(50); day.alignment.Set(WMComponents.AlignLeft);
 			day.multiLine.Set(FALSE); day.fillColor.Set(LONGINT(0FFFFFFFFH)); day.tv.showBorder.Set(TRUE);
+			day.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			p.AddContent(day);
 			NEW(label); label.bounds.SetWidth(50); label.alignment.Set(WMComponents.AlignLeft);
 			label.caption.SetAOC("Month: ");
 			p.AddContent(label);
 			NEW(month); month.bounds.SetWidth(50); month.alignment.Set(WMComponents.AlignLeft);
 			month.multiLine.Set(FALSE); month.fillColor.Set(LONGINT(0FFFFFFFFH)); month.tv.showBorder.Set(TRUE);
+			month.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			p.AddContent(month);
 			NEW(label); label.bounds.SetWidth(50); label.alignment.Set(WMComponents.AlignLeft);
 			label.caption.SetAOC("Year: ");
 			p.AddContent(label);
 			NEW(year); year.bounds.SetWidth(50); year.alignment.Set(WMComponents.AlignLeft);
 			year.multiLine.Set(FALSE); year.fillColor.Set(LONGINT(0FFFFFFFFH)); year.tv.showBorder.Set(TRUE);
+			year.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			p.AddContent(year);
 
 			NEW(p);
@@ -1304,6 +1316,7 @@ TYPE
 			p.AddContent(label);
 			NEW(SMTPServer); SMTPServer.alignment.Set(WMComponents.AlignClient);
 			SMTPServer.multiLine.Set(FALSE); SMTPServer.fillColor.Set(LONGINT(0FFFFFFFFH)); SMTPServer.tv.showBorder.Set(TRUE);
+			SMTPServer.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			SMTPServer.SetAsString(oldPreferences.SMTPServer^);
 			p.AddContent(SMTPServer);
 			panel.AddContent(p);
@@ -1315,6 +1328,7 @@ TYPE
 			p.AddContent(label);
 			NEW(SMTPThisHost); SMTPThisHost.alignment.Set(WMComponents.AlignClient);
 			SMTPThisHost.multiLine.Set(FALSE); SMTPThisHost.fillColor.Set(LONGINT(0FFFFFFFFH)); SMTPThisHost.tv.showBorder.Set(TRUE);
+			SMTPThisHost.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			SMTPThisHost.SetAsString(oldPreferences.SMTPThisHost^);
 			p.AddContent(SMTPThisHost);
 			panel.AddContent(p);
@@ -1326,6 +1340,7 @@ TYPE
 			p.AddContent(label);
 			NEW(SentFolder); SentFolder.alignment.Set(WMComponents.AlignClient);
 			SentFolder.multiLine.Set(FALSE); SentFolder.fillColor.Set(LONGINT(0FFFFFFFFH)); SentFolder.tv.showBorder.Set(TRUE);
+			SentFolder.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			SentFolder.SetAsString(oldPreferences.SentFolder^);
 			p.AddContent(SentFolder);
 			panel.AddContent(p);
@@ -1337,6 +1352,7 @@ TYPE
 			p.AddContent(label);
 			NEW(DraftFolder); DraftFolder.alignment.Set(WMComponents.AlignClient);
 			DraftFolder.multiLine.Set(FALSE); DraftFolder.fillColor.Set(LONGINT(0FFFFFFFFH)); DraftFolder.tv.showBorder.Set(TRUE);
+			DraftFolder.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			DraftFolder.SetAsString(oldPreferences.DraftFolder^);
 			p.AddContent(DraftFolder);
 			panel.AddContent(p);
@@ -1362,6 +1378,7 @@ TYPE
 			p.AddContent(label);
 			NEW(TrashBin); TrashBin.alignment.Set(WMComponents.AlignClient);
 			TrashBin.multiLine.Set(FALSE); TrashBin.fillColor.Set(LONGINT(0FFFFFFFFH)); TrashBin.tv.showBorder.Set(TRUE);
+			TrashBin.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			TrashBin.SetAsString(oldPreferences.TrashBin^);
 			p.AddContent(TrashBin);
 			panel.AddContent(p);
@@ -1373,6 +1390,7 @@ TYPE
 			p.AddContent(label);
 			NEW(From); From.alignment.Set(WMComponents.AlignClient);
 			From.multiLine.Set(FALSE); From.fillColor.Set(LONGINT(0FFFFFFFFH)); From.tv.showBorder.Set(TRUE);
+			From.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			From.SetAsString(oldPreferences.From^);
 			p.AddContent(From);
 			panel.AddContent(p);
@@ -1597,6 +1615,7 @@ TYPE
 
 			NEW(address); address.bounds.SetWidth(160); address.alignment.Set(WMComponents.AlignLeft);
 			address.multiLine.Set(FALSE); address.fillColor.Set(LONGINT(0FFFFFFFFH)); address.bearing.Set(rect); address.tv.showBorder.Set(TRUE);
+			address.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			address.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			address.onEnter.Add(ButtonHandler);
 			p.AddContent(address);

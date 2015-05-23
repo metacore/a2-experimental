@@ -478,6 +478,7 @@ TYPE
 			END;
 			editor.SetAsString(caption);
 			editor.multiLine.Set(FALSE);
+			editor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editor.tv.showBorder.Set(TRUE);
 		END NewEditor;
 

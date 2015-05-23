@@ -634,6 +634,7 @@ TYPE
 			edit.tv.defaultTextBgColor.Set(0);
 			edit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 2, 2));
 			edit.multiLine.Set(FALSE);
+			edit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			ep.AddContent(edit);
 			RETURN panel
 		END CreateForm;

@@ -91,6 +91,7 @@ TYPE
 			edit.tv.borders.Set(WMRectangles.MakeRect(3, 3, 2, 2));
 			edit.allowIME := FALSE;
 			edit.multiLine.Set(FALSE);
+			edit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			ep.AddContent(edit);
 			NEW(list); list.alignment.Set(WMComponents.AlignClient);
 			NEW(spacings, 2); spacings[0] := 60; spacings[1] := 140;

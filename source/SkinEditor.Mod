@@ -128,6 +128,7 @@ TYPE
 					(* filename edit *)
 			NEW(filenameEdit); filenameEdit.alignment.Set(WMComponents.AlignLeft); filenameEdit.fillColor.Set(0FFFFFFFFH);
 			filenameEdit.multiLine.Set(FALSE); filenameEdit.bounds.SetWidth(200);
+			filenameEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			topToolbar.AddContent(filenameEdit);
 			filenameEdit.tv.showBorder.Set(TRUE); filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			filenameEdit.onEnter.Add(LoadHandler);

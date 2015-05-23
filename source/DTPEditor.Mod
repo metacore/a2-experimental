@@ -150,6 +150,7 @@ TYPE
 			filenameEdit.alignment.Set(WMComponents.AlignLeft);
 			filenameEdit.multiLine.Set(FALSE); filenameEdit.bounds.SetWidth(200);
 			topToolbar.AddContent(filenameEdit); filenameEdit.fillColor.Set(0FFFFFFFFH);
+			filenameEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			filenameEdit.tv.showBorder.Set(TRUE);
 			filenameEdit.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			filenameEdit.onEnter.Add(LoadHandler);
@@ -182,6 +183,7 @@ TYPE
 			masterNumber.alignment.Set(WMComponents.AlignLeft);
 			masterNumber.multiLine.Set(FALSE); masterNumber.bounds.SetWidth(150);
 			masterNumber.fillColor.Set(0FFFFFFFFH);
+			masterNumber.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			masterNumber.tv.showBorder.Set(TRUE);
 			masterNumber.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			masterNumber.onEnter.Add(SetMasterHandler);
@@ -247,6 +249,7 @@ TYPE
 			masterNumber.alignment.Set(WMComponents.AlignTop);
 			masterNumber.multiLine.Set(FALSE); masterNumber.bounds.SetHeight(20);
 			masterNumber.fillColor.Set(0FFFFFFFFH);
+			masterNumber.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			masterNumber.tv.showBorder.Set(TRUE);
 			masterNumber.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			masterNumber.onEnter.Add(SetMasterHandler);
@@ -273,6 +276,7 @@ TYPE
 			pageNumber.alignment.Set(WMComponents.AlignLeft);
 			pageNumber.multiLine.Set(FALSE); pageNumber.bounds.SetWidth(28);
 			cpan.AddContent(pageNumber); pageNumber.fillColor.Set(0FFFFFFFFH);
+			pageNumber.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			pageNumber.tv.showBorder.Set(TRUE);
 			pageNumber.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1));
 			pageNumber.onEnter.Add(GoToPageHandler);
@@ -1937,6 +1941,7 @@ TYPE
 
 			NEW(dwe); dwe.bounds.SetHeight(20); dwe.alignment.Set(WMComponents.AlignTop);
 			dwe.tv.showBorder.Set(TRUE); dwe.multiLine.Set(FALSE); dwe.fillColor.Set(0FFFFFFFFH);
+			dwe.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editorsPanel.AddContent(dwe); dwe.onEnter.Add(FocusNextField);
 
 			NEW(dh); dh.bounds.SetHeight(20); dh.alignment.Set(WMComponents.AlignTop); dh.SetCaption(" Document Height [mm]:");
@@ -1944,6 +1949,7 @@ TYPE
 
 			NEW(dhe); dhe.bounds.SetHeight(20); dhe.alignment.Set(WMComponents.AlignTop);
 			dhe.tv.showBorder.Set(TRUE); dhe.multiLine.Set(FALSE); dhe.fillColor.Set(0FFFFFFFFH);
+			dhe.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editorsPanel.AddContent(dhe); dhe.onEnter.Add(FocusNextField);
 
 			NEW(dmt); dmt.bounds.SetHeight(20); dmt.alignment.Set(WMComponents.AlignTop); dmt.SetCaption(" Document Margin Top [mm]:");
@@ -1951,6 +1957,7 @@ TYPE
 
 			NEW(dmte); dmte.bounds.SetHeight(20); dmte.alignment.Set(WMComponents.AlignTop);
 			dmte.tv.showBorder.Set(TRUE); dmte.multiLine.Set(FALSE); dmte.fillColor.Set(0FFFFFFFFH);
+			dmte.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editorsPanel.AddContent(dmte);	dmte.onEnter.Add(FocusNextField);
 
 			NEW(dmb); dmb.bounds.SetHeight(20); dmb.alignment.Set(WMComponents.AlignTop); dmb.SetCaption(" Document Margin Bottom [mm]:");
@@ -1958,6 +1965,7 @@ TYPE
 
 			NEW(dmbe); dmbe.bounds.SetHeight(20); dmbe.alignment.Set(WMComponents.AlignTop);
 			dmbe.tv.showBorder.Set(TRUE); dmbe.multiLine.Set(FALSE); dmbe.fillColor.Set(0FFFFFFFFH);
+			dmbe.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editorsPanel.AddContent(dmbe); dmbe.onEnter.Add(FocusNextField);
 
 			NEW(dml); dml.bounds.SetHeight(20); dml.alignment.Set(WMComponents.AlignTop); dml.SetCaption(" Document Margin Left [mm]:");
@@ -1965,6 +1973,7 @@ TYPE
 
 			NEW(dmle); dmle.bounds.SetHeight(20); dmle.alignment.Set(WMComponents.AlignTop);
 			dmle.tv.showBorder.Set(TRUE); dmle.multiLine.Set(FALSE); dmle.fillColor.Set(0FFFFFFFFH);
+			dmle.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editorsPanel.AddContent(dmle); dmle.onEnter.Add(FocusNextField);
 
 			NEW(dmr); dmr.bounds.SetHeight(20); dmr.alignment.Set(WMComponents.AlignTop); dmr.SetCaption(" Document Margin Right [mm]:");
@@ -1972,6 +1981,7 @@ TYPE
 
 			NEW(dmre); dmre.bounds.SetHeight(20); dmre.alignment.Set(WMComponents.AlignTop);
 			dmre.tv.showBorder.Set(TRUE); dmre.multiLine.Set(FALSE); dmre.fillColor.Set(0FFFFFFFFH);
+			dmre.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			editorsPanel.AddContent(dmre); dmre.onEnter.Add(FocusNextField);
 
 			NEW(dfp); dfp.bounds.SetHeight(20); dfp.alignment.Set(WMComponents.AlignTop); dfp.SetCaption(" Facing Pages:");
@@ -1979,6 +1989,7 @@ TYPE
 
 			NEW(dfpe); dfpe.bounds.SetHeight(20); dfpe.alignment.Set(WMComponents.AlignTop);
 			dfpe.tv.showBorder.Set(TRUE); dfpe.multiLine.Set(FALSE); dfpe.fillColor.Set(0FFFFFFFFH);
+			dfpe.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			(* editorsPanel.AddContent(dfpe); *)  dfpe.onEnter.Add(FocusNextField);
 
 			NEW(fpCheck); fpCheck.bounds.SetHeight(20); fpCheck.alignment.Set(WMComponents.AlignTop);

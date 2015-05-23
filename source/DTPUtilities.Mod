@@ -374,6 +374,7 @@ TYPE
 			label.alignment.Set(WMComponents.AlignLeft);
 			NEW(pName); pName.alignment.Set(WMComponents.AlignClient);
 			pName.multiLine.Set(FALSE); pName.fillColor.Set(LONGINT(0FFFFFFFFH)); pName.tv.showBorder.Set(TRUE);
+			pName.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			pName.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); pName.onEnter.Add(UpdateValueHandler);
 			panel.AddContent(label);
 			panel.AddContent(pName);
@@ -386,6 +387,7 @@ TYPE
 			button1.SetExtPointerDownHandler(AlignHandler); button1.bounds.SetWidth(20);
 			NEW(pAlign); pAlign.alignment.Set(WMComponents.AlignClient);
 			pAlign.multiLine.Set(FALSE); pAlign.fillColor.Set(LONGINT(0FFFFFFFFH)); pAlign.tv.showBorder.Set(TRUE);
+			pAlign.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			pAlign.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); pAlign.onEnter.Add(UpdateValueHandler);
 			panel.AddContent(label); panel.AddContent(button1);
 			panel.AddContent(pAlign);
@@ -396,6 +398,7 @@ TYPE
 			label.alignment.Set(WMComponents.AlignLeft);
 			NEW(pFirstIndent); pFirstIndent.alignment.Set(WMComponents.AlignClient);
 			pFirstIndent.multiLine.Set(FALSE); pFirstIndent.fillColor.Set(LONGINT(0FFFFFFFFH)); pFirstIndent.tv.showBorder.Set(TRUE);
+			pFirstIndent.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			pFirstIndent.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); pFirstIndent.onEnter.Add(UpdateValueHandler);
 			panel.AddContent(label);
 			panel.AddContent(pFirstIndent);
@@ -651,6 +654,7 @@ TYPE
 		BEGIN
 			NEW(newEditor); newEditor.alignment.Set(WMComponents.AlignClient);
 			newEditor.multiLine.Set(FALSE); newEditor.fillColor.Set(LONGINT(0FFFFFFFFH)); newEditor.tv.showBorder.Set(TRUE);
+			newEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			newEditor.tv.borders.Set(WMRectangles.MakeRect(3,3,1,1)); newEditor.onEnter.Add(UpdateValueHandler);
 			newEditor.SetExtFocusHandler(FocusHandler);
 			RETURN newEditor;

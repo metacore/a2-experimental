@@ -78,6 +78,7 @@ TYPE
 			(* input field *)
 			NEW(input); input.multiLine.Set(FALSE); input.bounds.SetWidth(30); input.alignment.Set(WMComponents.AlignLeft);
 			input.tv.showBorder.Set(TRUE); AddInternalComponent(input);
+			input.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			input.text.onTextChanged.Add(ValueChanged);
 			(* buttons *)
 			NEW(buttons); buttons.bounds.SetWidth(20); buttons.alignment.Set(WMComponents.AlignLeft); AddInternalComponent(buttons);
