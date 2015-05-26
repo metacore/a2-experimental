@@ -269,6 +269,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetNameAsString(StrBase);
 			NEW(clDefault, ProtoClDefault, NIL, NIL); properties.Add(clDefault);
 			NEW(clSelected, ProtoClSelected, NIL, NIL); properties.Add(clSelected);
 			NEW(clMouseOver, ProtoClMouseOver, NIL, NIL); properties.Add(clMouseOver);
@@ -471,6 +472,7 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetNameAsString(StrWindowOverview);
 			SetGenerator("WMNavigate.GenOverview");
 			layoutMode.Set(Aspect);
 			borderWidth.Set(Border);
@@ -586,6 +588,7 @@ TYPE
 		style- : WMProperties.Int32Property; (* Text | Icons *)
 		menuLocation- : WMProperties.Int32Property; (* Left | Top | Right | Bottom *)
 		showThumbnails- : WMProperties.BooleanProperty;
+		showNames- : WMProperties.BooleanProperty;
 
 		viewport : WMWindowManager.ViewPort;
 		dummyInfo : WMWindowManager.WindowInfo;
@@ -596,10 +599,12 @@ TYPE
 		PROCEDURE &Init;
 		BEGIN
 			Init^;
+			SetNameAsString(StrTaskList);
 			SetGenerator("WMNavigate.GenTaskList");
 			NEW(style, ProtoTaskListStyle, NIL, NIL); properties.Add(style);
 			NEW(menuLocation, ProtoTaskListMenuLocation, NIL, NIL); properties.Add(menuLocation);
 			NEW(showThumbnails, ProtoTaskListShowThumbnails, NIL, NIL); properties.Add(showThumbnails);
+			NEW(showNames, ProtoTaskListShowNames, NIL, NIL); showNames.Set(showWindowNames); properties.Add(showNames);
 
 			CASE style.Get() OF
 				| Text:
@@ -685,7 +690,8 @@ TYPE
 
 		PROCEDURE PointerDown(x, y:LONGINT; keys:SET);
 		VAR
-			index : LONGINT; window : WMWindowManager.Window; info2 : WMWindowManager.WindowInfo;
+			index : LONGINT; window : WMWindowManager.Window; 
+			info2 : WMWindowManager.WindowInfo;
 			gx, gy: LONGINT;
 			menu : MenuWindow;
 			type, index2 : LONGINT;
@@ -830,6 +836,11 @@ TYPE
 					canvas.SetColor(WMGraphics.Black);
 				END;
 				canvas.DrawString(x + 4, y + height - 5, title^);
+			ELSE
+				IF showNames.Get() & window.isVisible  & (window.info#NIL) THEN
+					canvas.SetColor(WMGraphics.Black);
+					canvas.DrawString(x+4, y + height-5, window.info.openDocuments[0].name); (* to do: show the ACTIVE window *)
+				END;
 			END;
 		END DrawInternalIcons;
 
@@ -944,6 +955,7 @@ TYPE
 			SELF.menuLocation := menuLocation;
 			SELF.showThumbnails := showThumbnails;
 			Init; (* no super call since Init does not exist in this scope *)
+			SetNameAsString(Strings.NewString("InfoView"));
 			nofDocuments := 0;
 			keys := {};
 			xt := -1; yt := -1;
@@ -1229,6 +1241,7 @@ TYPE
 		);
 		VAR height : LONGINT;
 		BEGIN
+			
 			ASSERT((width > 0));
 			isClosed := FALSE;
 
@@ -1347,18 +1360,22 @@ VAR
 
 	StrWindowOverview : Strings.String;
 	StrNoName : Strings.String;
+	StrBase: Strings.String;
+	StrTaskList: Strings.String;
+	StrOverview: Strings.String;
 
 	width, height : LONGINT;
 
 	windowsAreHidden : BOOLEAN;
 	navigationIsHidden : BOOLEAN;
+	showWindowNames: BOOLEAN;
 
 	ProtoClDefault, ProtoClSelected, ProtoClMouseOver, ProtoClSelectedMouseOver,
 	ProtoClTextDefault, ProtoClTextSelected, ProtoClTextMouseOver, ProtoClTextSelectedMouseOver,
 	ProtoClIndicateHidden : WMProperties.ColorProperty;
 	ProtoBorderWidth : WMProperties.Int32Property;
 	ProtoTaskListStyle, ProtoTaskListMenuLocation : WMProperties.Int32Property;
-	ProtoTaskListShowThumbnails : WMProperties.BooleanProperty;
+	ProtoTaskListShowThumbnails, ProtoTaskListShowNames : WMProperties.BooleanProperty;
 	ProtoItemWidth, ProtoItemHeight : WMProperties.Int32Property;
 	ProtoLayoutMode : WMProperties.Int32Property;
 
@@ -1554,9 +1571,10 @@ BEGIN {EXCLUSIVE}
 	options.Add("f", "frame", Options.Flag);
 	options.Add("s", "stayOnTop", Options.Flag);
 	options.Add("v", "viewport", Options.Flag);
+	options.Add("n", "names", Options.Flag);
 
 	IF options.Parse(context.arg, context.out) THEN
-
+		showWindowNames := options.GetFlag("names");
 		context.arg.SkipWhitespace; context.arg.Int(id, FALSE);
 		context.arg.SkipWhitespace; context.arg.Int(x, FALSE);
 		context.arg.SkipWhitespace; context.arg.Int(y, FALSE);
@@ -1575,6 +1593,7 @@ BEGIN {EXCLUSIVE}
 							IF options.GetFlag("frame") THEN INCL(flags, WMWindowManager.FlagFrame); END;
 							IF options.GetFlag("stayOnTop") THEN INCL(flags, WMWindowManager.FlagStayOnTop); END;
 							IF options.GetFlag("viewport") THEN INCL(flags, WMWindowManager.FlagNavigation); END;
+							
 							NEW(windows[id], id, content(WMComponents.VisualComponent), x, y, w, h, TRUE, flags);
 							WMWindowManager.IncWTimestamp;
 							windows[id].CSChanged;
@@ -1832,7 +1851,10 @@ END GenOverview;
 PROCEDURE InitStrings;
 BEGIN
 	StrWindowOverview := Strings.NewString("WindowOverview");
+	StrTaskList := Strings.NewString("TaskList");
 	StrNoName := Strings.NewString("NoName");
+	StrBase := Strings.NewString("Base");
+	StrOverview:=Strings.NewString("Overview");
 END InitStrings;
 
 PROCEDURE InitProtos;
@@ -1866,6 +1888,8 @@ BEGIN
 	ProtoTaskListMenuLocation.Set(Bottom);
 	NEW(ProtoTaskListShowThumbnails, NIL, Strings.NewString("ShowThumbnails"), Strings.NewString("Show window thumbnails?"));
 	ProtoTaskListShowThumbnails.Set(TRUE);
+	NEW(ProtoTaskListShowNames, NIL, Strings.NewString("ShowNames"), Strings.NewString("Show window names?"));
+	ProtoTaskListShowNames.Set(TRUE);
 	NEW(ProtoItemWidth, NIL, Strings.NewString("ItemWidth"), Strings.NewString("Width of task list item"));
 	NEW(ProtoItemHeight, NIL, Strings.NewString("ItemHeight"), Strings.NewString("Height of task list item"));
 	NEW(ProtoLayoutMode, NIL, Strings.NewString("LayoutMode"), Strings.NewString("Item layouting mode"));
