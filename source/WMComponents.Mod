@@ -395,13 +395,12 @@ TYPE
 		END CheckReadLock;
 
 		(** AddContent adds a content (element or subtree) to the element. Called mainly by the XMLParser.
-			after insertion of content to component, call of c.Reset() or form.Reset() may be needed, if not implicitly done by FormWindow.SetContent .
 		*)
 		PROCEDURE AddContent*(c : XML.Content);
 		VAR m:Messages.Message;  rect:Rectangles.Rectangle;
 		BEGIN
 			ASSERT(c # NIL);
-			
+			Acquire;
 			BEGIN {EXCLUSIVE}
 				IF c IS WMProperties.Properties THEN
 					properties.SetXML(c(WMProperties.Properties)); 
@@ -423,7 +422,7 @@ TYPE
 				END;
 			END;
 
-			Acquire;
+			(*Acquire;*)
 			AddContent^(c);
 			Release;
 		END AddContent;
@@ -2131,7 +2130,6 @@ TYPE
 		disableUpdate : LONGINT;
 		content : VisualComponent;
 		scaling* : BOOLEAN;
-	
 
 		PROCEDURE ToXML*():XML.Content;
 		VAR winx: XML.Element; a: XML.Attribute; string: ARRAY 128 OF CHAR; title:Strings.String;
@@ -2170,7 +2168,9 @@ TYPE
 
 		PROCEDURE SetContent*(x : XML.Content);
 		VAR c: XML.Content;
+			m:Messages.Message;
 		BEGIN 
+			IF sequencer # NIL THEN sequencer.WaitFree() END;
 			BEGIN{EXCLUSIVE} 
 				INC(disableUpdate);
 				INCL(flags, 13); (* render windows background non-displayed*)
@@ -2194,12 +2194,12 @@ TYPE
 					form.initialized:=TRUE;
 					form.AddContent(content);
 					form.focusComponent := content;
-					form.fPointerOwner := content
+					form.fPointerOwner := content;
 				END;
 				DEC(disableUpdate);
-			END;
+			END;			
 			form.Initialize;
-			form.InvalidateRect(form.GetClientRect());	(* / form.Invalidate;*)
+			form.Invalidate;
 		END SetContent;
 
 		PROCEDURE DisableUpdate*;
@@ -2256,8 +2256,10 @@ TYPE
 		END Update;
 		
 		PROCEDURE Handle*(VAR m : Messages.Message);
+		VAR pendingM: Messages.Message;
 		BEGIN
 			Handle^(m);
+			
 			IF (m.msgType = Messages.MsgExt) & (m.ext # NIL) THEN
 				IF (m.ext = componentStyleMsg) THEN CSChanged
 				END;
@@ -2283,7 +2285,8 @@ TYPE
 					KernelLog.String("Focus chain: "); form.TraceFocusChain;
 				END;
 			END;
-			IF (form # NIL) THEN form.Handle(m); END
+			
+			IF (form # NIL) THEN form.Handle(m); END;
 		END Handle;
 
 		PROCEDURE LanguageChanged*(languages : Localization.Languages);
