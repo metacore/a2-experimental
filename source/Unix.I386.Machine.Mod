@@ -6,7 +6,7 @@ IMPORT S := SYSTEM, Trace, Unix, Glue;
 CONST
 	DefaultConfig = "Color 0  StackSize 128";
 	
-	Version = "Aos (rev.6033)";
+	Version = "Aos (rev.6114)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	
@@ -76,7 +76,7 @@ VAR
 	SSE5Support-	: BOOLEAN;
 	AVXSupport-		: BOOLEAN;
 	
-	ticks*: LONGINT;	(** timer ticks. Use Kernel.GetTicks() to read, don't write *)
+	ticks-: LONGINT;	(** timer ticks. Use Kernel.GetTicks() to read, don't write *)
 	
 	prioLow-, prioHigh-: LONGINT;	(* permitted thread priorities *)
 	
@@ -111,6 +111,8 @@ VAR
 	
 	logfile: LONGINT;
 	traceHeap: BOOLEAN;
+	
+	timer0	: HUGEINT;
 
 (** -- Processor identification -- *)
 
@@ -599,7 +601,8 @@ END GetEDI;
 
 
 PROCEDURE {REALTIME} -SetEAX*(n: LONGINT);
-CODE{SYSTEM.i386}	POP EAX
+CODE{SYSTEM.i386}	
+	POP EAX
 END SetEAX;
 
 PROCEDURE {REALTIME} -SetEBX*(n: LONGINT);
@@ -636,81 +639,83 @@ END GetTimer;
 
 (** -- Configuration and bootstrapping -- *)
 
-(** Return the value of the configuration string specified by parameter name in parameter val. Returns val = "" if the string was not found, or has an empty value. *)
-PROCEDURE GetConfig* (CONST name: ARRAY OF CHAR; VAR val: ARRAY OF CHAR);
-VAR i, src: LONGINT; ch: CHAR;
-BEGIN
-	ASSERT (name[0] # "=");	(* no longer supported, use GetInit instead *)
-	src := -1;
-	LOOP
-		REPEAT
-			INC( src );  ch := config[src]; 
-			IF ch = 0X THEN EXIT END;
-		UNTIL ch > ' ';
-		i := 0;
+	(** Return the value of the configuration string specified by parameter name in parameter val. Returns val = "" if the string was not found, or has an empty value. *)
+	PROCEDURE GetConfig* (CONST name: ARRAY OF CHAR; VAR val: ARRAY OF CHAR);
+	VAR i, src: LONGINT; ch: CHAR;
+	BEGIN
+		ASSERT (name[0] # "=");	(* no longer supported, use GetInit instead *)
+		src := -1;
 		LOOP
-			ch := config[src];
-			IF (ch # name[i]) OR (name[i] = 0X) THEN EXIT END;
-			INC (i); INC (src)
-		END;
-		IF (ch <= ' ') & (name[i] = 0X) THEN	(* found *)
-			i := 0;
 			REPEAT
-				INC (src); ch := config[src]; val[i] := ch; INC (i);
-				IF i = LEN(val) THEN val[i - 1] := 0X; RETURN END	(* val too short *)
-			UNTIL ch <= ' ';
-			IF ch = ' ' THEN val[i -1] := 0X END; 
-			RETURN
-		ELSE
-			WHILE ch > ' ' DO	(* skip to end of name *)
-				INC (src); ch := config[src]
+				INC( src );  ch := config[src]; 
+				IF ch = 0X THEN EXIT END;
+			UNTIL ch > ' ';
+			i := 0;
+			LOOP
+				ch := config[src];
+				IF (ch # name[i]) OR (name[i] = 0X) THEN EXIT END;
+				INC (i); INC (src)
 			END;
-			INC (src);
-			REPEAT	(* skip to end of value *)
-				ch := config[src]; INC (src)
-			UNTIL ch <= ' '
-		END
-	END;
-	val[0] := 0X
-END GetConfig;
-
-(** Convert a string to an integer. Parameter i specifies where in the string scanning should begin (usually 0 in the first call). Scanning stops at the first non-valid character, and i returns the updated position. Parameter s is the string to be scanned. The value is returned as result, or 0 if not valid. Syntax: number = ["-"] digit {digit} ["H" | "h"] . digit = "0" | ... "9" | "A" .. "F" | "a" .. "f" . If the number contains any hexdecimal letter, or if it ends in "H" or "h", it is interpreted as hexadecimal. *)
-PROCEDURE StrToInt* (VAR i: LONGINT; CONST s: ARRAY OF CHAR): LONGINT;
-VAR vd, vh, sgn, d: LONGINT; hex: BOOLEAN;
-BEGIN
-	vd := 0; vh := 0; hex := FALSE;
-	IF s[i] = "-" THEN sgn := -1; INC (i) ELSE sgn := 1 END;
-	LOOP
-		IF (s[i] >= "0") & (s[i] <= "9") THEN d := ORD (s[i])-ORD ("0")
-		ELSIF (CAP (s[i]) >= "A") & (CAP (s[i]) <= "F") THEN d := ORD (CAP (s[i]))-ORD ("A") + 10; hex := TRUE
-		ELSE EXIT
+			IF (ch <= ' ') & (name[i] = 0X) THEN	(* found *)
+				i := 0;
+				REPEAT
+					INC (src); ch := config[src]; val[i] := ch; INC (i);
+					IF i = LEN(val) THEN val[i - 1] := 0X; RETURN END	(* val too short *)
+				UNTIL ch <= ' ';
+				IF ch = ' ' THEN val[i -1] := 0X END; 
+				RETURN
+			ELSE
+				WHILE ch > ' ' DO	(* skip to end of name *)
+					INC (src); ch := config[src]
+				END;
+				INC (src);
+				REPEAT	(* skip to end of value *)
+					ch := config[src]; INC (src)
+				UNTIL ch <= ' '
+			END
 		END;
-		vd := 10*vd + d; vh := 16*vh + d;
-		INC (i)
-	END;
-	IF CAP (s[i]) = "H" THEN hex := TRUE; INC (i) END;	(* optional H *)
-	IF hex THEN vd := vh END;
-	RETURN sgn * vd
-END StrToInt;
+		val[0] := 0X
+	END GetConfig;
 
-(* function returning the number of processors that are available to Aos *)
-PROCEDURE NumberOfProcessors*( ): LONGINT;
-BEGIN
-	RETURN 1
-END NumberOfProcessors;
 
-(*! non portable code, for native Aos only *)
-PROCEDURE SetNumberOfProcessors*( num: LONGINT );
-BEGIN
-	(* numberOfProcessors := num; *)
-END SetNumberOfProcessors;
+	(** Convert a string to an integer. Parameter i specifies where in the string scanning should begin (usually 0 in the first call). Scanning stops at the first non-valid character, and i returns the updated position. Parameter s is the string to be scanned. The value is returned as result, or 0 if not valid. Syntax: number = ["-"] digit {digit} ["H" | "h"] . digit = "0" | ... "9" | "A" .. "F" | "a" .. "f" . If the number contains any hexdecimal letter, or if it ends in "H" or "h", it is interpreted as hexadecimal. *)
+	PROCEDURE StrToInt* (VAR i: LONGINT; CONST s: ARRAY OF CHAR): LONGINT;
+	VAR vd, vh, sgn, d: LONGINT; hex: BOOLEAN;
+	BEGIN
+		vd := 0; vh := 0; hex := FALSE;
+		IF s[i] = "-" THEN sgn := -1; INC (i) ELSE sgn := 1 END;
+		LOOP
+			IF (s[i] >= "0") & (s[i] <= "9") THEN d := ORD (s[i])-ORD ("0")
+			ELSIF (CAP (s[i]) >= "A") & (CAP (s[i]) <= "F") THEN d := ORD (CAP (s[i]))-ORD ("A") + 10; hex := TRUE
+			ELSE EXIT
+			END;
+			vd := 10*vd + d; vh := 16*vh + d;
+			INC (i)
+		END;
+		IF CAP (s[i]) = "H" THEN hex := TRUE; INC (i) END;	(* optional H *)
+		IF hex THEN vd := vh END;
+		RETURN sgn * vd
+	END StrToInt;
+	
 
-(* function for changing byte order *)
-PROCEDURE ChangeByteOrder* (n: LONGINT): LONGINT;
-CODE { SYSTEM.i486 }
-	MOV EAX, [EBP+n]				; load n in eax
-	BSWAP EAX						; swap byte order
-END ChangeByteOrder;
+	(* function returning the number of processors that are available to Aos *)
+	PROCEDURE NumberOfProcessors*( ): LONGINT;
+	BEGIN
+		RETURN 1
+	END NumberOfProcessors;
+
+	(*! non portable code, for native Aos only *)
+	PROCEDURE SetNumberOfProcessors*( num: LONGINT );
+	BEGIN
+		(* numberOfProcessors := num; *)
+	END SetNumberOfProcessors;
+
+	(* function for changing byte order *)
+	PROCEDURE ChangeByteOrder* (n: LONGINT): LONGINT;
+	CODE { SYSTEM.i486 }
+		MOV EAX, [EBP+n]				; load n in eax
+		BSWAP EAX						; swap byte order
+	END ChangeByteOrder;
 
 
 	(* Send and print character *)
@@ -737,7 +742,7 @@ END ChangeByteOrder;
 		MOV	ESI, [EBP+features2]
 		MOV	[ESI], EAX
 		JMP	end
-		ok:
+	ok:
 		MOV	ESI, [EBP+vendor]
 		MOV	[ESI], EBX
 		MOV	[ESI+4], EDX
@@ -751,7 +756,7 @@ END ChangeByteOrder;
 		MOV	[ESI], EDX
 		MOV	ESI, [EBP+features2]
 		MOV	[ESI], ECX
-		end:
+	end:
 	END CPUID;
 	
 
@@ -911,6 +916,12 @@ END ChangeByteOrder;
 	END InitConfig;
 	
 	
+	PROCEDURE UpdateTicks*;
+	BEGIN
+		ticks := SHORT( (GetTimer() - timer0) DIV (mhz * 1000) );
+	END UpdateTicks;
+	
+	
 	PROCEDURE InitThreads;
 	VAR res: BOOLEAN; 
 	BEGIN
@@ -1011,6 +1022,7 @@ END ChangeByteOrder;
 		saveSP := Empty;	(* to be replaced in module Objects *)
 		
 		COPY( Unix.Version, version );  Append( version, Version );
+		timer0 := GetTimer( );  ticks := 0;
 		InitThreads;
 		InitLocks;
 

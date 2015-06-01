@@ -110,12 +110,12 @@ TYPE
 			
 	TimerActivity = OBJECT		
 	VAR 
-		t, r: Timer;  h: EventHandler;  restart: BOOLEAN; ticks: LONGINT;
+		t, r: Timer;  h: EventHandler;  restart: BOOLEAN;
 		
-		PROCEDURE Notify;
+		PROCEDURE UpdateTicks;
 		BEGIN {EXCLUSIVE}
-			ticks := Machine.ticks
-		END Notify;
+			Machine.UpdateTicks
+		END UpdateTicks;
 		
 		PROCEDURE Restart;
 		BEGIN {EXCLUSIVE}
@@ -129,8 +129,8 @@ TYPE
 			IF t # NIL THEN				
 				h := NIL;  r := NIL;
 				BEGIN {EXCLUSIVE}
-					AWAIT( (ticks >= t.trigger) OR restart );  restart := FALSE;
-					IF ticks >= t.trigger THEN
+					AWAIT( (Machine.ticks >= t.trigger) OR restart );  restart := FALSE;
+					IF Machine.ticks >= t.trigger THEN
 						h := t.handler;  r := t
 					END
 				END;
@@ -161,14 +161,14 @@ TYPE
 		n: Heaps.FinalizerNode;  start: BOOLEAN;
 	
 		PROCEDURE Start;
-		BEGIN 
+		BEGIN {EXCLUSIVE}
 			start := TRUE
 		END Start;
 		
 	BEGIN {ACTIVE, SAFE, PRIORITY(High)}
 		finCaller := CurrentProcess( );  start := FALSE;
 		LOOP 
-			REPEAT Sleep( 50 ) UNTIL start;
+			BEGIN {EXCLUSIVE} AWAIT( start ) END;
 			start := FALSE;
 			LOOP
 				n := Heaps.GetFinalizer();
@@ -670,19 +670,7 @@ TYPE
 		WHILE (t # NIL ) & (t.threadId # me) DO  t := t.nextProcess  END;
 		IF t # NIL THEN  t.SP := Machine.CurrentSP( )  END
 	END SaveSP;
-	
-	
-	PROCEDURE CollectGarbage;
-	BEGIN
-		Machine.Acquire( Machine.Heaps );
-		SuspendActivities;
-		Heaps.CollectGarbage( Modules.root );
-		Machine.Release( Machine.Heaps );
-		finalizerCaller.Start;	
-		ResumeActivities;
-	END CollectGarbage;
-	
-	
+		
 	
 	PROCEDURE InvokeGC;
 	BEGIN
@@ -695,21 +683,21 @@ TYPE
 		The stack of the main thread is not limited by the  boot parameter 'StackSize' !!
 	*)
 	PROCEDURE GCLoop*;	(* Timer and GC activity *)
-	VAR t0, t1, f: HUGEINT;  
 	BEGIN
-		f := Machine.mhz * 1000;
-		t0 := Machine.GetTimer( );
 		LOOP
 			IF collect THEN  
 				collect := FALSE;
-				CollectGarbage;  
+				Machine.Acquire( Machine.Heaps );
+				SuspendActivities;
+				Heaps.CollectGarbage( Modules.root );
+				Machine.Release( Machine.Heaps );
+				ResumeActivities;
+				finalizerCaller.Start;
 				conSignal( gcFinished );
 			ELSE
 				thrSleep( 10 ); 
 			END;
-			t1 := Machine.GetTimer();
-			Machine.ticks := SHORT( (t1 - t0 ) DIV f );
-			timerActivity.Notify
+			timerActivity.UpdateTicks
 		END
 	END GCLoop;	
 	
