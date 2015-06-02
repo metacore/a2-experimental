@@ -6,7 +6,7 @@ IMPORT S := SYSTEM, Trace, Unix, Glue;
 CONST
 	DefaultConfig = "Color 0  StackSize 128";
 	
-	Version = "Aos (rev.6114)";
+	Version = "Aos (rev.6115)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	
@@ -60,7 +60,6 @@ TYPE
 	
 	
 VAR
-	lock-	: ARRAY MaxLocks OF CHAR;  (* not implemented as SET because of shared access *)
 	mtx	: ARRAY MaxLocks OF Unix.Mutex_t;
 	
 	version-: ARRAY 64 OF CHAR;	(** Aos version *)
@@ -106,7 +105,6 @@ VAR
 	thrSleep		: PROCEDURE {REALTIME, C} ( ms: LONGINT );
 	thrThis			: PROCEDURE {REALTIME, C} ( dummy: LONGINT ): Unix.Thread_t;
 	
-	saveSP*	: PROCEDURE;		(* save SP for usage by GC *)
 
 	
 	logfile: LONGINT;
@@ -848,9 +846,7 @@ END GetTimer;
 	VAR i: LONGINT;  
 	BEGIN 
 		i := 0;  
-		WHILE i < MaxLocks DO  
-			mtx[i] := mtxInit(0);  lock[i] := "N";  INC( i )  
-		END;   
+		WHILE i < MaxLocks DO  mtx[i] := mtxInit(0);  INC( i )  END;   
 	END InitLocks;  
 
 	PROCEDURE CleanupLocks*;  
@@ -863,16 +859,13 @@ END GetTimer;
 	(** Acquire a spin-lock. *)
 	PROCEDURE  Acquire*( level: LONGINT );   (* non reentrant lock *)
 	BEGIN 
-		lock[level] := "Y"; 
 		mtxLock( mtx[level] );
-		IF level = Heaps THEN  saveSP  END
 	END Acquire;  
 
 	(** Release a spin-lock. *)
 	PROCEDURE  Release*( level: LONGINT );   
 	BEGIN 
 		mtxUnlock( mtx[level] );
-		lock[level] := "N"; 
 	END Release;  
 	
 	PROCEDURE Shutdown*( reboot: BOOLEAN );
@@ -996,8 +989,6 @@ END GetTimer;
 		a[i] := 0X
 	END Append;
 	
-	PROCEDURE {REALTIME} Empty;
-	END Empty;
 
 	PROCEDURE Init;
 	VAR vendor: Vendor; ver: LONGINT;
@@ -1018,9 +1009,7 @@ END GetTimer;
 		Unix.Dlsym( 0, "thrThis",		ADDRESSOF( thrThis ) );
 		
 		standaloneAppl := FALSE;
-		
-		saveSP := Empty;	(* to be replaced in module Objects *)
-		
+				
 		COPY( Unix.Version, version );  Append( version, Version );
 		timer0 := GetTimer( );  ticks := 0;
 		InitThreads;

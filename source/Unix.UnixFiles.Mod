@@ -125,7 +125,7 @@ TYPE
 				PROCEDURE New0*( name: ARRAY OF CHAR ): Files.File;
 				VAR f: File;
 				BEGIN {EXCLUSIVE}
-					AwaitFinalizing;
+					AwaitFinalizingDone;
 					NEW( f, SELF );
 					f.workName := "";  COPY( name, f.registerName );
 					f.fd := NoDesc;  f.state := Create;  f.fsize := 0;  f.fpos := 0;
@@ -148,7 +148,6 @@ TYPE
 					oflags: SET;  nextdir, path: Filename; 
 				BEGIN  {EXCLUSIVE}
 					IF name = "" THEN  RETURN NIL  END;
-					AwaitFinalizing;
 					
 					IF IsFullName( name ) THEN  
 						COPY( name, path );  nextdir := "";  
@@ -156,6 +155,7 @@ TYPE
 						pos := 0;  ScanPath( pos, nextdir );  MakePath( nextdir, name, path );
 						ScanPath( pos, nextdir )
 					END;
+					
 					IF (FileTabSize - openfiles) < ResFiles THEN  GC   END;
 						
 					LOOP
@@ -177,6 +177,7 @@ TYPE
 								IF f # NIL THEN
 									(* use the file already cached *)  r := Unix.close( fd );  EXIT
 								ELSIF fd < FileTabSize THEN
+									AwaitFinalizingDone;
 									NEW( f, SELF );
 									f.fd := fd;  f.dev := stat.dev;  f.ino := stat.ino;  
 									f.mtime := stat.mtime.sec;  f.fsize := stat.size;  f.fpos := 0;  
@@ -858,15 +859,14 @@ TYPE
 	PROCEDURE GC;
 	BEGIN
 		Kernel.GC;
-		AwaitFinalizing
+		AwaitFinalizingDone
 	END GC;
 	
-	PROCEDURE AwaitFinalizing;
+	PROCEDURE AwaitFinalizingDone;
 	BEGIN
 		(* wait until finalizers have finished! (Cleanup)*)
-		WHILE Machine.lock[Machine.GC] = 'Y' DO  Objects.Sleep( 10 )  END;
-	END AwaitFinalizing;
-
+		Machine.Acquire( Machine.GC );  Machine.Release( Machine.GC )
+	END AwaitFinalizingDone;
 
 	PROCEDURE ResetBuffers( f: File;  VAR stat: Unix.Status );
 	VAR i: INTEGER;

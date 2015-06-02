@@ -123,7 +123,7 @@ VAR
 	collecting-: BOOLEAN;
 	markDepth: LONGINT;
 	
-	
+	saveSP*	: PROCEDURE;		(* save SP for usage in Objects.Process.FindRoots() *)
 	
 	(** Statistics. Will only be maintained if Stats = TRUE *)
 
@@ -695,26 +695,26 @@ VAR
 	END FindFreeBlock;
 	
 	
+	PROCEDURE Collect;
+	BEGIN
+		thruput := 0;
+		Machine.Acquire( Machine.GC );
+		Machine.Release( Machine.Heaps );
+		Machine.Release( Machine.GC );
+		GC;
+		Machine.Acquire( Machine.Heaps );
+	END Collect;
 
 	PROCEDURE GetBlock( size: SIZE ): ADDRESS;   (* size MOD B = 0 *)
 	VAR 
 		block: FreeBlock;  blkSize: SIZE;  blkAdr, adr2: ADDRESS;
 	BEGIN 
-		IF ((thruput > ThruputBarrier) OR (heapAvailable < size)) & (Machine.lock[Machine.GC] = 'N') THEN
-			thruput := 0;
-			Machine.Release( Machine.Heaps );
-			GC;
-			Machine.Acquire( Machine.Heaps );
-		END;
-
+		IF (thruput > ThruputBarrier) OR (heapAvailable < size) THEN  Collect END;
+			
 		REPEAT
 			block := FindFreeBlock( size );
 			IF block = NIL THEN
-				IF (thruput > 0) & (Machine.lock[Machine.GC] = 'N') THEN
-					thruput := 0;
-					Machine.Release( Machine.Heaps );
-					GC;
-					Machine.Acquire( Machine.Heaps );
+				IF thruput > 0 THEN  Collect
 				ELSE	
 				(*	ShowFreeLists( "befor ExpandHeap" );	*)
 					Machine.ExpandHeap( 0, size, S.VAL( ADDRESS, block ), adr2 );
@@ -738,6 +738,7 @@ VAR
 		INC( thruput, size );
 		IF Stats THEN  INC(Nnew); INC(NnewBytes, size)  END;
 		Machine.Fill32( blkAdr, size, 0 );
+		IF saveSP # NIL THEN  saveSP  END;
 		RETURN blkAdr
 	END GetBlock;
 

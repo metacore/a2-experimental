@@ -778,7 +778,7 @@ TYPE
 		
 		NEW( finalizerCaller );
 		
-		Machine.saveSP := SaveSP;
+		Heaps.saveSP := SaveSP;
 		Heaps.GC := InvokeGC;
 		Heaps.InvokeGC := InvokeGC;
 	END Init;
