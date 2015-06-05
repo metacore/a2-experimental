@@ -34,7 +34,7 @@ ASSERT((frame.cols < 255) & (frame.rows < 255));
 				END
 			END Do;
 
-			PROCEDURE SB(option: CHAR);
+			PROCEDURE SB(option: CHAR); 
 				VAR ch: CHAR;
 			BEGIN
 				IF (option = Telnet.OptTerminalType) & (R.Peek() = 01X) THEN (* SEND *)
