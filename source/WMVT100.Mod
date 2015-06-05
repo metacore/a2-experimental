@@ -1,12 +1,15 @@
 MODULE WMVT100; (* ejz,  *)
-	IMPORT WMWindowManager, WMComponents, WMStandardComponents, WMGraphics, WMPopups,
-		Strings, Texts, Inputs, Streams, Commands, IP, DNS, TCP, Telnet, KernelLog;
+	IMPORT WMWindowManager, WMComponents, WMStandardComponents, WMGraphics, WMPopups, WMDialogs, WMMessages,
+		Strings, Texts, Inputs, Streams, Commands, IP, DNS, TCP, Telnet, KernelLog, Modules;
 
 	CONST
 		Border = 2; BoxW = 8; BoxH = 18;
 		Left = 0; Right = 2;
 		Underscore = 0; Blink = 1;
 		CursorKeyMode = 0; AppKeypadMode = 1; AutoWrapMode = 2; WindowSize = 31;
+
+	TYPE 
+		KillerMsg=OBJECT END KillerMsg;
 
 	TYPE
 		Connection = OBJECT (Telnet.Connection)
@@ -750,12 +753,12 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 							|0FF08H: C.W.Char(07FX); C.W.Update()
 							|0FF0DH: C.W.Char(0DX); C.W.Char(0AX); C.W.Update()
 							|0FF1BH: C.W.Char(01BX); C.W.Update()
-							|0FF8DH: IF AppKeypadMode IN C.mode THEN
-												C.W.Char(01BX); C.W.Char("O"); C.W.Char("M")
-											ELSE
-												C.W.Char(0DX); C.W.Char(0AX)
-											END;
-											C.W.Update()
+							|0FF8DH: 
+								IF AppKeypadMode IN C.mode THEN 
+										C.W.Char(01BX); C.W.Char("O"); C.W.Char("M")
+								ELSE	C.W.Char(0DX); C.W.Char(0AX)
+								END;
+								C.W.Update()
 						ELSE
 						END
 					END
@@ -861,24 +864,35 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 				SetContent(panel);
 				manager := WMWindowManager.GetDefaultManager();
 				SetTitle(WMWindowManager.NewString("VT100 Terminal"));
-				manager.Add(100, 100, SELF, {WMWindowManager.FlagFrame})
+				manager.Add(100, 100, SELF, {WMWindowManager.FlagFrame, WMWindowManager.FlagClose})
 			END New;
 
 			PROCEDURE Close;
 			BEGIN
 				frame.C.Close();
-				Close^()
+				Close^();
+				DecCount;
 			END Close;
 		END Window;
+		
+	VAR nofWindows:LONGINT;
 
 	PROCEDURE Open*(context : Commands.Context);
 	VAR
 		inst: Window;
 		name: ARRAY 256 OF CHAR; port: LONGINT; adr: IP.Adr; res: LONGINT;
-		C: TCP.Connection; TC: Connection;
+		C: TCP.Connection; TC: Connection; sr: Streams.StringReader;
 	BEGIN
-		context.arg.SkipWhitespace; context.arg.String(name);
-		context.arg.SkipWhitespace; context.arg.Int(port, FALSE);
+		IF ~context.arg.GetString(name) OR ~ context.arg.GetInteger(port,FALSE) THEN
+			IF WMDialogs.QueryString("Please give Address and Port", name) = WMDialogs.ResOk THEN 
+				NEW(sr,256); sr.Set(name); 
+				IF ~sr.GetString(name) OR ~ sr.GetInteger(port,FALSE) THEN 
+					WMDialogs.Information("Connecting failed", "insufficient info on address, port"); RETURN
+				END;
+			ELSE
+				WMDialogs.Information("Connect failed", "insufficient info on address, port"); RETURN
+			END;
+		END;			
 		IF port = 0 THEN port := 23 END;
 		DNS.HostByName(name, adr, res);
 		IF res # DNS.Ok THEN
@@ -890,18 +904,38 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 			context.error.String(name); context.error.String(" open failed");
 			context.error.Ln(); RETURN;
 		END;
-		NEW(TC, C); NEW(inst, TC);
+		NEW(TC, C); 
+		NEW(inst, TC); IncCount();
 	END Open;
+	
+	PROCEDURE IncCount;
+	BEGIN {EXCLUSIVE}
+		INC(nofWindows);
+	END IncCount;
 
+	PROCEDURE DecCount;
+	BEGIN {EXCLUSIVE}
+		DEC(nofWindows);
+	END DecCount;
+	
+	PROCEDURE Cleanup;
+	VAR die : KillerMsg;
+		 msg : WMMessages.Message;
+		 m : WMWindowManager.WindowManager;
+	BEGIN {EXCLUSIVE}
+		NEW(die); msg.ext := die; msg.msgType := WMMessages.MsgExt;
+		m := WMWindowManager.GetDefaultManager();
+		m.Broadcast(msg);
+		AWAIT(nofWindows = 0)
+	END Cleanup;
+
+BEGIN
+	Modules.InstallTermHandler(Cleanup);
 END WMVT100.
 
-Aos.Call WMVT100.Open lillian.inf.ethz.ch ~
+WMVT100.Open "127.0.0.1" ~
 
-Aos.Call WMVT100.Open "127.0.0.1:25" ~
-WMHELO
-WMVT100.Open "127.0.0.1" 25 ~
-
-System.Free WMVT100 ~	System.State WMVT100 ~
+SystemTools.Free WMVT100 ~	SystemTools.State WMVT100 ~
 
 System.OpenKernelLog
 
