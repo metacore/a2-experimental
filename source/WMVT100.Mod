@@ -820,8 +820,8 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 			BEGIN
 				Initialize^();
 				takesFocus.Set(TRUE);
-				resized();
-				Invalidate()
+				(*resized();*)
+				Invalidate();
 			END Initialize;
 
 			PROCEDURE &New*(C: Connection; cols, rows: LONGINT);
@@ -897,7 +897,8 @@ END WMVT100.
 
 Aos.Call WMVT100.Open lillian.inf.ethz.ch ~
 
-Aos.Call WMVT100.Open "127.0.0.1" ~
+Aos.Call WMVT100.Open "127.0.0.1:25" ~
+WMVT100.Open "127.0.0.1" 25 ~
 
 System.Free WMVT100 ~	System.State WMVT100 ~
 
