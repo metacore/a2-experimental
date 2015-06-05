@@ -7,7 +7,8 @@ MODULE WMVT100; (* ejz,  *)
 		Left = 0; Right = 2;
 		Underscore = 0; Blink = 1;
 		CursorKeyMode = 0; AppKeypadMode = 1; AutoWrapMode = 2; WindowSize = 31;
-
+	
+		
 	TYPE 
 		KillerMsg=OBJECT END KillerMsg;
 
@@ -863,9 +864,16 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 				Init(panel.bounds.GetWidth(), panel.bounds.GetHeight(), FALSE);
 				SetContent(panel);
 				manager := WMWindowManager.GetDefaultManager();
-				SetTitle(WMWindowManager.NewString("VT100 Terminal"));
+				(*SetTitle(WMWindowManager.NewString("VT100 Terminal"));*)
 				manager.Add(100, 100, SELF, {WMWindowManager.FlagFrame, WMWindowManager.FlagClose})
 			END New;
+			
+			PROCEDURE Handle(VAR x: WMMessages.Message);
+			BEGIN
+				IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) & (x.ext IS KillerMsg) THEN Close
+				ELSE Handle^(x)
+				END;
+			END Handle;
 
 			PROCEDURE Close;
 			BEGIN
@@ -877,11 +885,38 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 		
 	VAR nofWindows:LONGINT;
 
-	PROCEDURE Open*(context : Commands.Context);
+	PROCEDURE open(CONST name: ARRAY OF CHAR; port:LONGINT; type:LONGINT; error:Streams.Writer);
 	VAR
 		inst: Window;
-		name: ARRAY 256 OF CHAR; port: LONGINT; adr: IP.Adr; res: LONGINT;
-		C: TCP.Connection; TC: Connection; sr: Streams.StringReader;
+		title: Strings.String; adr: IP.Adr; res: LONGINT;
+		C: TCP.Connection; TC: Connection; 
+	BEGIN
+		IF port = 0 THEN port := 23 END;
+		DNS.HostByName(name, adr, res);
+		IF res # DNS.Ok THEN
+			error.String(name); error.String(" invalid address");
+			error.Ln(); RETURN;
+		END;
+		NEW(C); C.Open(TCP.NilPort, adr, port, res);
+		IF res # TCP.Ok THEN
+			error.String(name); error.String(" open failed");
+			error.Ln(); RETURN;
+		END;
+		NEW(TC, C); 
+			IF type=Telnet.Tcp THEN TC.flags:={Telnet.Echo}; title:=WMWindowManager.NewString("TCP Terminal");
+			ELSIF type=Telnet.Telnet THEN TC.flags:={Telnet.Telnet}; title:=WMWindowManager.NewString("Telnet Terminal");
+			ELSIF type=Telnet.VT100 THEN TC.flags:={Telnet.Telnet};  (*! add VT100?*) title:=WMWindowManager.NewString("VT100 Terminal");
+			ELSE HALT(200) 
+			END;
+		NEW(inst, TC); inst.SetTitle(title);
+		IncCount();
+	END open;
+
+
+	PROCEDURE Open*(context : Commands.Context);
+	VAR
+		name: ARRAY 256 OF CHAR; port: LONGINT; 
+		 sr: Streams.StringReader;
 	BEGIN
 		IF ~context.arg.GetString(name) OR ~ context.arg.GetInteger(port,FALSE) THEN
 			IF WMDialogs.QueryString("Please give Address and Port", name) = WMDialogs.ResOk THEN 
@@ -893,20 +928,27 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 				WMDialogs.Information("Connect failed", "insufficient info on address, port"); RETURN
 			END;
 		END;			
-		IF port = 0 THEN port := 23 END;
-		DNS.HostByName(name, adr, res);
-		IF res # DNS.Ok THEN
-			context.error.String(name); context.error.String(" invalid address");
-			context.error.Ln(); RETURN;
-		END;
-		NEW(C); C.Open(TCP.NilPort, adr, port, res);
-		IF res # TCP.Ok THEN
-			context.error.String(name); context.error.String(" open failed");
-			context.error.Ln(); RETURN;
-		END;
-		NEW(TC, C); 
-		NEW(inst, TC); IncCount();
+		open(name, port, Telnet.VT100, context.error);
 	END Open;
+	
+	PROCEDURE OpenTCP*(context : Commands.Context);
+	VAR
+		name: ARRAY 256 OF CHAR; port: LONGINT; 
+		sr: Streams.StringReader;
+	BEGIN
+		IF ~context.arg.GetString(name) OR ~ context.arg.GetInteger(port,FALSE) THEN
+			IF WMDialogs.QueryString("Please give Address and Port", name) = WMDialogs.ResOk THEN 
+				NEW(sr,256); sr.Set(name); 
+				IF ~sr.GetString(name) OR ~ sr.GetInteger(port,FALSE) THEN 
+					WMDialogs.Information("Connecting failed", "insufficient info on address, port"); RETURN
+				END;
+			ELSE
+				WMDialogs.Information("Connect failed", "insufficient info on address, port"); RETURN
+			END;
+		END;			
+		open(name, port, Telnet.Tcp, context.error);
+	END OpenTCP;
+
 	
 	PROCEDURE IncCount;
 	BEGIN {EXCLUSIVE}
@@ -933,7 +975,8 @@ BEGIN
 	Modules.InstallTermHandler(Cleanup);
 END WMVT100.
 
-WMVT100.Open "127.0.0.1" ~
+WMVT100.Open "127.0.0.1" 25~
+WMVT100.OpenTCP "127.0.0.1" 25~ (* terminal for raw TCP connection, e.g. to test a SMTP server *)
 
 SystemTools.Free WMVT100 ~	SystemTools.State WMVT100 ~
 

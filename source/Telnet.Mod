@@ -16,7 +16,7 @@ MODULE Telnet; (* ejz,  *)
 
 		MaxLine = 256;
 
-		Telnet* = 0; VT100* = 1; Echo* = 2; Closed* = 31;
+		Telnet* = 0; VT100* = 1; Echo* = 2;Tcp*=3;  Closed* = 31;
 
 	TYPE
 		Connection* = OBJECT
