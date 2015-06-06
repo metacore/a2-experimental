@@ -147,6 +147,19 @@ BEGIN
 	DecNofRunningTests;
 END TestAddX;
 
+PROCEDURE TestToday*(context:Commands.Context);
+VAR dt: Dates.DateTime;
+	year, week, weekday:LONGINT;
+	dayTable: ARRAY 25 OF CHAR;
+BEGIN
+	dt:=Dates.Now();
+	Dates.WeekDate(dt, year, week, weekday);
+	context.out.Int(year,6); context.out.Int(week,6); context.out.Int(weekday,6); context.out.Ln; context.out.Ln;
+	dayTable := "SunMonTueWedThuFriSatSun"; 
+	context.out.Char(dayTable[weekday*3]); context.out.Char(dayTable[weekday*3+1]); context.out.Char(dayTable[weekday*3+2]); context.out.Ln; context.out.Update; 
+END TestToday;
+
+
 PROCEDURE IncNofRunningTests;
 BEGIN {EXCLUSIVE}
 	INC(nofRunningTests);
@@ -174,3 +187,4 @@ SystemTools.Free TestDates ~
 TestDates.TestTimeDifference ~
 
 TestDates.TestAddX ~
+TestDates.TestToday ~

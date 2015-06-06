@@ -1,5 +1,7 @@
 MODULE IMAPUtilities; (** AUTHOR "retmeier"; PURPOSE "some useful procedures for the IMAP client"; *)
 
+(*! to do: IMAPUtilities.getRFC822Date seems one weekday off, on thursday it says: Fri, 28 May 2015 21:15:04 +0100*)
+
 IMPORT
 	Dates, Strings, Classes := TFClasses, Streams, KernelLog, UTF8Strings, Texts, TextUtilities, WMEditors;
 
@@ -638,11 +640,12 @@ VAR
 	buffer: Strings.Buffer;
 	w: Streams.Writer;
 	answer: String;
-	dayTable: ARRAY 22 OF CHAR;
+	dayTable: ARRAY 25 OF CHAR;
 	monthTable: ARRAY 37 OF CHAR;
 	td : Dates.DateTime;
 BEGIN
-	dayTable := "MonTueWedThuFriSatSun";
+	(* was: dayTable := "MonTueWedThuFriSatSun"; but: ISO 8601  week day is (Monday=1, ....Sunday=7) *)
+	dayTable := "SunMonTueWedThuFriSatSun";
 	monthTable := "JanFebMarAprMayJunJulAugSepOctNovDec";
 	NEW(buffer, 16);
 	w := buffer.GetWriter();
