@@ -1,5 +1,7 @@
-MODULE WMVT100; (* ejz,  *)
-	IMPORT WMWindowManager, WMComponents, WMStandardComponents, WMGraphics, WMPopups, WMDialogs, WMMessages,
+MODULE WMVT100; (* ejz,  ph *)
+(* to do: nicer, dialog-free GUI*)
+
+	IMPORT WMWindowManager, WMComponents, WMStandardComponents, WMGraphics, WMPopups, WMEditors, WMDialogs, WMMessages,
 		Strings, Texts, Inputs, Streams, Commands, IP, DNS, TCP, Telnet, KernelLog, Modules;
 
 	CONST
@@ -7,7 +9,6 @@ MODULE WMVT100; (* ejz,  *)
 		Left = 0; Right = 2;
 		Underscore = 0; Blink = 1;
 		CursorKeyMode = 0; AppKeypadMode = 1; AutoWrapMode = 2; WindowSize = 31;
-	
 		
 	TYPE 
 		KillerMsg=OBJECT END KillerMsg;
@@ -21,7 +22,7 @@ MODULE WMVT100; (* ejz,  *)
 				IF option = Telnet.OptTerminalType THEN
 					W.Char(Telnet.CmdIAC); W.Char(Telnet.CmdWILL); W.Char(Telnet.OptTerminalType)
 				ELSIF option = Telnet.OptWindowSize THEN
-ASSERT((frame.cols < 255) & (frame.rows < 255));
+					ASSERT((frame.cols < 255) & (frame.rows < 255));
 					INCL(mode, WindowSize);
 					W.Char(Telnet.CmdIAC); W.Char(Telnet.CmdSB);
 					W.Char(Telnet.OptWindowSize);
@@ -54,8 +55,7 @@ ASSERT((frame.cols < 255) & (frame.rows < 255));
 			END SB;
 
 			PROCEDURE ESC(ch: CHAR);
-				VAR par: ARRAY 4 OF LONGINT; i, n: LONGINT;
-done: BOOLEAN;
+				VAR par: ARRAY 4 OF LONGINT; i, n: LONGINT; done: BOOLEAN;
 			BEGIN
 				IF ~(Telnet.VT100 IN flags) THEN RETURN END;
 				R.Char(ch);
@@ -73,89 +73,71 @@ done: BOOLEAN;
 							R.Int(par[n], FALSE); INC(n); R.Char(ch)
 						UNTIL (n >= 4) OR (ch # ";")
 					ELSE
-ASSERT(ch < 07FX);
+						ASSERT(ch < 07FX);
 						R.Char(ch)
 					END;
-done := FALSE;
+					done := FALSE;
 					CASE ch OF
 						"A": IF n = 1 THEN
-										frame.Goto(frame.GetCol(), frame.GetRow()-par[0], TRUE)
-;done := TRUE
+										frame.Goto(frame.GetCol(), frame.GetRow()-par[0], TRUE);done := TRUE
 									ELSE
-										frame.Goto(frame.GetCol(), frame.GetRow()-1, TRUE)
-;done := n = 0
-									END
-;done := n = 0
+										frame.Goto(frame.GetCol(), frame.GetRow()-1, TRUE);done := n = 0
+									END;done := n = 0
 						|"B": IF n = 1 THEN
-										frame.Goto(frame.GetCol(), frame.GetRow()+par[0], TRUE)
-;done := TRUE
+										frame.Goto(frame.GetCol(), frame.GetRow()+par[0], TRUE);done := TRUE
 									ELSE
-										frame.Goto(frame.GetCol(), frame.GetRow()+1, TRUE)
-;done := n = 0
+										frame.Goto(frame.GetCol(), frame.GetRow()+1, TRUE);done := n = 0
 									END
 						|"C": IF n = 1 THEN
-										frame.Goto(frame.GetCol()+par[0], frame.GetRow(), FALSE)
-;done := TRUE
+										frame.Goto(frame.GetCol()+par[0], frame.GetRow(), FALSE);done := TRUE
 									ELSE
-										frame.Goto(frame.GetCol()+1, frame.GetRow(), FALSE)
-;done := n = 0
+										frame.Goto(frame.GetCol()+1, frame.GetRow(), FALSE);done := n = 0
 									END
 						|"D": IF n = 1 THEN
-										frame.Goto(frame.GetCol()-par[0], frame.GetRow(), FALSE)
-;done := TRUE
+										frame.Goto(frame.GetCol()-par[0], frame.GetRow(), FALSE);done := TRUE
 									ELSE
-										frame.Goto(frame.GetCol()-1, frame.GetRow(), FALSE)
-;done := n = 0
+										frame.Goto(frame.GetCol()-1, frame.GetRow(), FALSE);done := n = 0
 									END
 						|"H": IF n = 2 THEN
-										frame.Goto(par[1]-1, par[0]-1, FALSE)
-;done := TRUE
+										frame.Goto(par[1]-1, par[0]-1, FALSE);done := TRUE
 									ELSE
-										frame.Goto(0, 0, FALSE)
-;done := n = 0
+										frame.Goto(0, 0, FALSE);done := n = 0
 									END
-						|"J", "K":  frame.Erase(ch, par, n)
-;done := TRUE
+						|"J", "K":  frame.Erase(ch, par, n);done := TRUE
 						|"h": IF n = 1 THEN
 									IF par[0] = 1 THEN
-										INCL(mode, CursorKeyMode)
-;done := TRUE
+										INCL(mode, CursorKeyMode);done := TRUE
 									ELSIF par[0] = 7 THEN
-										INCL(mode, AutoWrapMode)
-;done := TRUE
+										INCL(mode, AutoWrapMode);done := TRUE
 									END
 								END
 						|"l": IF n = 1 THEN
 									IF par[0] = 1 THEN
-										EXCL(mode, CursorKeyMode)
-;done := TRUE
+										EXCL(mode, CursorKeyMode);done := TRUE
 									ELSIF par[0] = 7 THEN
-										EXCL(mode, AutoWrapMode)
-;done := TRUE
+										EXCL(mode, AutoWrapMode);done := TRUE
 									END
 								END
-						|"m": frame.SetAttributes(par, n)
-;done := TRUE
+						|"m": frame.SetAttributes(par, n);done := TRUE
 					ELSE
+					END; 
+					IF ~done THEN
+						KernelLog.String("ESC [ ");
+						i := 0;
+						WHILE i < n DO
+							KernelLog.Int(par[i], 0); INC(i);
+							IF i < n THEN KernelLog.String(" ; ") END
+						END;
+						KernelLog.String(" "); KernelLog.Char(ch);
+						KernelLog.String(" "); KernelLog.Ln()
 					END
-; IF ~done THEN
-	KernelLog.String("ESC [ ");
-	i := 0;
-	WHILE i < n DO
-		KernelLog.Int(par[i], 0); INC(i);
-		IF i < n THEN KernelLog.String(" ; ") END
-	END;
-	KernelLog.String(" "); KernelLog.Char(ch);
-	KernelLog.String(" "); KernelLog.Ln()
-END
 				ELSE
 					CASE ch OF
 						"=": INCL(mode, AppKeypadMode)
 						|">": EXCL(mode, AppKeypadMode)
 						|"D": frame.SetTop(frame.GetRow()+1)
 						|"M": frame.SetTop(frame.GetRow()-1)
-					ELSE
-KernelLog.String("ESC "); KernelLog.Hex(ORD(ch), 0); KernelLog.Ln()
+					ELSE KernelLog.String("ESC "); KernelLog.Hex(ORD(ch), 0); KernelLog.Ln()
 					END
 				END
 			END ESC;
@@ -246,6 +228,7 @@ KernelLog.String("ESC "); KernelLog.Hex(ORD(ch), 0); KernelLog.Ln()
 				attr: Attribute; cursor: Position;
 				sel: RECORD beg, end: Position END;
 				popup: WMPopups.Popup;
+				doEcho:BOOLEAN;
 
 			PROCEDURE GetCol(): LONGINT;
 			BEGIN {EXCLUSIVE}
@@ -331,9 +314,11 @@ KernelLog.String("ESC "); KernelLog.Hex(ORD(ch), 0); KernelLog.Ln()
 				InvalidateRect(update)
 			END UpdateAll;
 
-			PROCEDURE WriteChars(VAR buf: ARRAY OF LONGINT; n: LONGINT);
+
+			
+			PROCEDURE writeChars(VAR buf: ARRAY OF LONGINT; n: LONGINT);
 				VAR l: Line; i, ofs: LONGINT; wrap: BOOLEAN;
-			BEGIN {EXCLUSIVE}
+			BEGIN 
 				wrap := FALSE;
 				l := cursor.line; ofs := cursor.ofs; i := 0;
 				LOOP
@@ -354,6 +339,11 @@ KernelLog.String("ESC "); KernelLog.Hex(ORD(ch), 0); KernelLog.Ln()
 				ELSE
 					UpdateRect(cursor.line, l, cursor.ofs, ofs, {4})
 				END
+			END writeChars;
+
+			PROCEDURE WriteChars(VAR buf: ARRAY OF LONGINT; n: LONGINT);
+			BEGIN {EXCLUSIVE}
+				writeChars(buf,n);
 			END WriteChars;
 
 			PROCEDURE Delete;
@@ -366,11 +356,11 @@ KernelLog.String("ESC "); KernelLog.Hex(ORD(ch), 0); KernelLog.Ln()
 				END
 			END Delete;
 
-			PROCEDURE Goto(col, row: LONGINT; scroll: BOOLEAN);
+			PROCEDURE goto(col, row: LONGINT; scroll: BOOLEAN);
 				VAR l: Line; y, b: LONGINT;
-			BEGIN {EXCLUSIVE}
-(* top = row 0, < 0 => scroll up *)
-ASSERT(row >= 0);
+			BEGIN 
+				(* top = row 0, < 0 => scroll up *)
+				ASSERT(row >= 0);
 				IF col < 0 THEN col := 0 ELSIF col >= cols THEN col := cols-1 END;
 				y := dY + boxH; b := dY + rows*boxH; l := top;
 				WHILE row > 0 DO
@@ -383,11 +373,17 @@ ASSERT(row >= 0);
 				ELSE
 					UpdateRect(cursor.line, l, cursor.ofs, col, {2, 4})
 				END
+			END goto;
+
+
+			PROCEDURE Goto(col, row: LONGINT; scroll: BOOLEAN);
+			BEGIN {EXCLUSIVE}
+				goto(col,row,scroll)
 			END Goto;
 
 			PROCEDURE SetTop(row: LONGINT);
 			BEGIN {EXCLUSIVE}
-KernelLog.String("SetTop "); KernelLog.Int(row, 0); KernelLog.Ln();
+				KernelLog.String("SetTop "); KernelLog.Int(row, 0); KernelLog.Ln();
 				IF row < 0 THEN
 
 				ELSIF row > 0 THEN
@@ -443,6 +439,7 @@ KernelLog.String("SetTop "); KernelLog.Int(row, 0); KernelLog.Ln();
 				attr.bg := WMGraphics.RGBAToColor(255, 255, 255, 255);
 				attr.fg := WMGraphics.RGBAToColor(0, 0, 0, 255)
 			END NewAttr;
+			
 
 			PROCEDURE Bright;
 				VAR style: SET;
@@ -451,8 +448,7 @@ KernelLog.String("SetTop "); KernelLog.Int(row, 0); KernelLog.Ln();
 				IF ~(WMGraphics.FontBold IN style) THEN
 					INCL(style, WMGraphics.FontBold);
 					attr.fnt := WMGraphics.GetFont(attr.fnt.name, attr.fnt.size, style)
-				ELSE
-KernelLog.String("Bright"); KernelLog.Ln()
+				ELSE KernelLog.String("Bright"); KernelLog.Ln()
 				END
 			END Bright;
 
@@ -463,9 +459,8 @@ KernelLog.String("Bright"); KernelLog.Ln()
 				IF WMGraphics.FontBold IN style THEN
 					EXCL(style, WMGraphics.FontBold);
 					attr.fnt := WMGraphics.GetFont(attr.fnt.name, attr.fnt.size, style)
-				ELSE
-KernelLog.String("Dim"); KernelLog.Ln()
-				END
+				ELSE KernelLog.String("Dim"); KernelLog.Ln()
+ 				END
 			END Dim;
 
 			PROCEDURE SetAttributes(attrs: ARRAY OF LONGINT; n: LONGINT);
@@ -483,7 +478,7 @@ KernelLog.String("Dim"); KernelLog.Ln()
 						|7: (* Reverse *) c := attr.bg; attr.bg := attr.fg; attr.fg := c
 						|8: (* Hidden *) attr.fg := attr.bg
 					ELSE
-KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
+						KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 					END;
 					INC(i)
 				END
@@ -741,10 +736,20 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 			END CursorKey;
 
 			PROCEDURE KeyEvent(ucs: LONGINT; flags: SET; VAR keySym: LONGINT);
+			VAR echo: ARRAY 1 OF LONGINT; col:LONGINT;
 			BEGIN
 				IF ~(Inputs.Release IN flags) & hasFocus THEN
 					IF (keySym DIV 256) = 0 THEN
-						C.W.Char(CHR(keySym)); C.W.Update()
+						C.W.Char(CHR(keySym)); C.W.Update();
+						
+						IF doEcho THEN
+							col:=attr.fg;
+							attr.fg:=WMGraphics.Red;
+							echo[0]:=keySym;
+							writeChars(echo,1);
+							attr.fg:=col;
+						END;
+						
 					ELSIF (keySym DIV 256) = 0FFH THEN
 						CASE keySym OF
 							0FF51H .. 0FF54H: CursorKey(keySym)
@@ -752,7 +757,9 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 							|0FF57H: (* End *)
 							|0FFFFH: (* Delete *)
 							|0FF08H: C.W.Char(07FX); C.W.Update()
-							|0FF0DH: C.W.Char(0DX); C.W.Char(0AX); C.W.Update()
+							|0FF0DH: 
+								C.W.Char(0DX); C.W.Char(0AX);	C.W.Update(); (* insertion of 0AX after 0DX is not strictly raw TCP ! *)
+								IF doEcho THEN goto(GetCol(), GetRow()+1, TRUE); goto(0, GetRow(), TRUE) END; (* if you do it in one step, the color is not currently handled well*)
 							|0FF1BH: C.W.Char(01BX); C.W.Update()
 							|0FF8DH: 
 								IF AppKeypadMode IN C.mode THEN 
@@ -824,14 +831,15 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 			BEGIN
 				Initialize^();
 				takesFocus.Set(TRUE);
-				(*resized();*)
-				(*Invalidate();*)
 			END Initialize;
 
 			PROCEDURE &New*(C: Connection; cols, rows: LONGINT);
 				VAR i: LONGINT;
 			BEGIN
-				Init(); SELF.C := C;
+				Init(); 
+				SetNameAsString(Strings.NewString("VT100Frame"));
+				(*SetGenerator("WMVT100.GenFrame");*)
+				SELF.C := C;
 				SELF.rows := rows; SELF.cols := cols;
 				NewAttr(); bg := WMGraphics.RGBAToColor(255, 255, 255, 255);
 				last := NIL; first := AppendLine(); top := first;
@@ -845,14 +853,19 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 				C.SetFrame(SELF);
 				NEW(popup);
 				popup.Add("Copy", ClickHandler);
-				popup.Add("Paste", ClickHandler)
+				popup.Add("Paste", ClickHandler);
+				doEcho:=TRUE;
 			END New;
+			
+			
 		END Frame;
 
 		Window = OBJECT (WMComponents.FormWindow)
 			VAR
 				panel: WMStandardComponents.Panel;
 				frame: Frame;
+				
+
 
 			PROCEDURE &New*(C: Connection);
 				VAR
@@ -864,7 +877,6 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 				Init(panel.bounds.GetWidth(), panel.bounds.GetHeight(), FALSE);
 				SetContent(panel);
 				manager := WMWindowManager.GetDefaultManager();
-				(*SetTitle(WMWindowManager.NewString("VT100 Terminal"));*)
 				manager.Add(100, 100, SELF, {WMWindowManager.FlagFrame, WMWindowManager.FlagClose})
 			END New;
 			
@@ -883,9 +895,12 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 			END Close;
 		END Window;
 		
+		
 	VAR nofWindows:LONGINT;
+	
 
-	PROCEDURE open(CONST name: ARRAY OF CHAR; port:LONGINT; type:LONGINT; error:Streams.Writer);
+
+	PROCEDURE Open*(CONST name: ARRAY OF CHAR; port:LONGINT; type:LONGINT; error:Streams.Writer):Window;
 	VAR
 		inst: Window;
 		title: Strings.String; adr: IP.Adr; res: LONGINT;
@@ -895,12 +910,12 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 		DNS.HostByName(name, adr, res);
 		IF res # DNS.Ok THEN
 			error.String(name); error.String(" invalid address");
-			error.Ln(); RETURN;
+			error.Ln(); RETURN NIL;
 		END;
 		NEW(C); C.Open(TCP.NilPort, adr, port, res);
 		IF res # TCP.Ok THEN
 			error.String(name); error.String(" open failed");
-			error.Ln(); RETURN;
+			error.Ln(); RETURN NIL;
 		END;
 		NEW(TC, C); 
 			IF type=Telnet.Tcp THEN TC.flags:={Telnet.Echo}; title:=WMWindowManager.NewString("TCP Terminal");
@@ -910,16 +925,15 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 			END;
 		NEW(inst, TC); inst.SetTitle(title);
 		IncCount();
-	END open;
+		RETURN inst
+	END Open;
 
-
-	PROCEDURE Open*(context : Commands.Context);
+	PROCEDURE GetRemote(context : Commands.Context; VAR name: ARRAY OF CHAR; VAR port:LONGINT);
 	VAR
-		name: ARRAY 256 OF CHAR; port: LONGINT; 
 		 sr: Streams.StringReader;
 	BEGIN
-		IF ~context.arg.GetString(name) OR ~ context.arg.GetInteger(port,FALSE) THEN
-			IF WMDialogs.QueryString("Please give Address and Port", name) = WMDialogs.ResOk THEN 
+		IF (context=NIL) OR  ~context.arg.GetString(name) OR ~ context.arg.GetInteger(port,FALSE) THEN
+			IF WMDialogs.QueryString("Remote address and port", name) = WMDialogs.ResOk THEN 
 				NEW(sr,256); sr.Set(name); 
 				IF ~sr.GetString(name) OR ~ sr.GetInteger(port,FALSE) THEN 
 					WMDialogs.Information("Connecting failed", "insufficient info on address, port"); RETURN
@@ -927,29 +941,24 @@ KernelLog.String("attr "); KernelLog.Int(attrs[i], 0); KernelLog.Ln()
 			ELSE
 				WMDialogs.Information("Connect failed", "insufficient info on address, port"); RETURN
 			END;
-		END;			
-		open(name, port, Telnet.VT100, context.error);
-	END Open;
-	
-	PROCEDURE OpenTCP*(context : Commands.Context);
-	VAR
-		name: ARRAY 256 OF CHAR; port: LONGINT; 
-		sr: Streams.StringReader;
-	BEGIN
-		IF ~context.arg.GetString(name) OR ~ context.arg.GetInteger(port,FALSE) THEN
-			IF WMDialogs.QueryString("Please give Address and Port", name) = WMDialogs.ResOk THEN 
-				NEW(sr,256); sr.Set(name); 
-				IF ~sr.GetString(name) OR ~ sr.GetInteger(port,FALSE) THEN 
-					WMDialogs.Information("Connecting failed", "insufficient info on address, port"); RETURN
-				END;
-			ELSE
-				WMDialogs.Information("Connect failed", "insufficient info on address, port"); RETURN
-			END;
-		END;			
-		open(name, port, Telnet.Tcp, context.error);
-	END OpenTCP;
+		END;	
+	END GetRemote;
 
-	
+	PROCEDURE Start*(context : Commands.Context);
+	VAR
+		name,protocol: ARRAY 256 OF CHAR; port: LONGINT; 
+		window:Window;
+	BEGIN
+		IF (context=NIL) OR ~context.arg.GetString(protocol) OR ((protocol#"Tcp")&(protocol#"Telnet")&(protocol#"VT100")) THEN
+			IF ~(WMDialogs.QueryString("Please give protocol {Tcp,Telnet,VT100}", protocol) = WMDialogs.ResOk) THEN RETURN END;
+		END;
+		GetRemote(context, name, port);
+		IF protocol="Tcp" THEN window:=Open(name, port, Telnet.Tcp, context.error);
+		ELSIF protocol="Telnet" THEN window:=Open(name, port, Telnet.Telnet, context.error);
+		ELSIF protocol="VT100" THEN window:=Open(name, port, Telnet.VT100, context.error);
+		END;
+	END Start;
+
 	PROCEDURE IncCount;
 	BEGIN {EXCLUSIVE}
 		INC(nofWindows);
@@ -975,20 +984,22 @@ BEGIN
 	Modules.InstallTermHandler(Cleanup);
 END WMVT100.
 
-WMVT100.Open "127.0.0.1" 25~
-WMVT100.OpenTCP "127.0.0.1" 25~ (* terminal for raw TCP connection, e.g. to test a SMTP server *)
+WMVT100.Open~
 
-SystemTools.Free WMVT100 ~	SystemTools.State WMVT100 ~
+WMVT100.Start Tcp "127.0.0.1" 25~ (* TCP terminal, e.g. to test a SMTP server *)
+WMVT100.Start Tcp "127.0.0.1" 80~ (* manual access to HTTP server *)
+WMVT100.Start Telnet <server> <portNr>~ (* will include Telnet control characters *)
+WMVT100.Start VT100 <server> <portNr>~ (* will include Telnet/VT100 control characters *)
 
-System.OpenKernelLog
+SystemTools.Free WMVT100 ~	
 
-ESC [ 1 ; 43 r
-ESC 00000028
-ESC 00000029
-
-home, end, delete, insert, pageup, pagedown
-
-emacs
-pine
-pico
-lynx
+from wikipedia: Telnet
+All data octets except 0xff are transmitted over Telnet as is. 
+Therefore, a Telnet client application may also be used to establish an interactive raw TCP session, 
+and it is commonly believed that such session which does not use the IAC (0xff, or 255 in decimal) is functionally identical.
+This is not the case, however, because there are other network virtual terminal (NVT) rules, 
+such as the requirement for a bare carriage return character (CR, ASCII 13) to be followed by a NUL (ASCII 0) character or a LF character, 
+that distinguish the telnet protocol from raw TCP sessions.
+Another difference of Telnet from a raw TCP session is that Telnet is not 8-bit clean by default. 
+8-bit mode may be negotiated, but high-bit-set octets may be garbled until this mode was requested, and it obviously will not be requested in non-Telnet connection. 
+The standard suggests the interpretation of codes 0000-0176 as ASCII, but does not offer any meaning for high-bit-set data octets.
