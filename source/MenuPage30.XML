@@ -123,7 +123,7 @@
 
 		<Standard:Button>
 			<Properties>
-				<Caption>Terminal</Caption>
+				<Caption>Serial Terminal</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -138,7 +138,34 @@
 
 		<Standard:Button>
 			<Properties>
-				<Caption>Console</Caption>
+				<Caption>TCP Terminal</Caption>
+				<Alignment>2</Alignment>
+				<OnClickHandler>X Run</OnClickHandler>
+			</Properties>
+
+			<Standard:SystemCommand>
+				<Properties>
+					<ID>X</ID>
+					<CommandString>WMVT100.Start</CommandString>
+				</Properties>
+			</Standard:SystemCommand>
+		</Standard:Button>
+		
+
+	</Standard:Panel>
+
+<!-- 5th column -->
+	<Standard:Panel>
+		<Properties>
+			<Alignment>1</Alignment>
+			<Bounds>
+				<Width>120</Width>
+			</Bounds>
+		</Properties>
+
+		<Standard:Button>
+			<Properties>
+				<Caption>Shell</Caption>
 				<Alignment>2</Alignment>
 				<OnClickHandler>X Run</OnClickHandler>
 			</Properties>
@@ -150,16 +177,6 @@
 				</Properties>
 			</Standard:SystemCommand>
 		</Standard:Button>
-	</Standard:Panel>
-
-<!-- 5th column -->
-	<Standard:Panel>
-		<Properties>
-			<Alignment>1</Alignment>
-			<Bounds>
-				<Width>120</Width>
-			</Bounds>
-		</Properties>
 
 		<Standard:Button>
 			<Properties>
@@ -176,20 +193,6 @@
 			</Standard:SystemCommand>
 		</Standard:Button>
 
-		<Standard:Button>
-			<Properties>
-				<Caption></Caption>
-				<Alignment>2</Alignment>
-				<OnClickHandler></OnClickHandler>
-			</Properties>
-
-			<Standard:SystemCommand>
-				<Properties>
-					<ID>X</ID>
-					<CommandString></CommandString>
-				</Properties>
-			</Standard:SystemCommand>
-		</Standard:Button>
 	</Standard:Panel>
 
 </Standard:Panel>
