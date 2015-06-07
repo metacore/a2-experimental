@@ -1739,7 +1739,7 @@ TYPE
 			AddContent(label);
 
 			NEW(locationEdit); locationEdit.bearing.Set(bearing); locationEdit.alignment.Set(WMComponents.AlignTop); locationEdit.bounds.SetHeight(20); locationEdit.multiLine.Set(FALSE);
-			lacationEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
+			locationEdit.tv.textAlignV.Set(WMGraphics.AlignCenter);
 			locationEdit.fillColor.Set(White); locationEdit.tv.showBorder.Set(TRUE);
 			AddContent(locationEdit);
 

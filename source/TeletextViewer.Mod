@@ -286,7 +286,7 @@ TYPE
 			NEW(nrEditor);
 			nrEditor.bounds.SetWidth(60);
 			nrEditor.alignment.Set(Base.AlignLeft); nrEditor.multiLine.Set(FALSE);
-			nrEditor.tv.textAlignV.Set(WMGraphics.AlignCenter);
+			nrEditor.tv.textAlignV.Set(Graphics.AlignCenter);
 			nrEditor.onEnter.Add(OnLoad);
 			navi.AddContent(nrEditor);
 
