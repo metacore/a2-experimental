@@ -252,7 +252,7 @@ MODULE BIT;	(** portable *)	(* tk 12.2.96 *)
 	PROCEDURE LLESS*(x, y: LONGCARD): BOOLEAN;
 		VAR x0, y0: LONGINT;
 	BEGIN x0 := LSH(x, -1); y0 := LSH(y, -1);
-		IF x0 - y0 = 0 THEN RETURN x0 MOD 2 < y0 MOD 2 ELSE RETURN x0 < y0 END
+		IF x0 = y0 THEN RETURN x MOD 2 < y MOD 2 ELSE RETURN x0 < y0 END
 	END LLESS;
 
 
@@ -276,7 +276,7 @@ MODULE BIT;	(** portable *)	(* tk 12.2.96 *)
 	PROCEDURE LLESSEQ*(x, y: LONGCARD): BOOLEAN;
 		VAR x0, y0: LONGINT;
 	BEGIN x0 := LSH(x, -1); y0 := LSH(y, -1);
-		IF x0 - y0 = 0 THEN RETURN x0 MOD 2 <= y0 MOD 2 ELSE RETURN x0 <= y0 END
+		IF x0 = y0 THEN RETURN x MOD 2 <= y MOD 2 ELSE RETURN x0 <= y0 END
 	END LLESSEQ;
 
 
