@@ -18,8 +18,6 @@ CONST
 
 	ChanClosed* = T.Closed;  ChanOpen* = T.Connected;   (* channel states *)
 
-	trace = FALSE;
-
 
 	(*---------------------- TCP/IP port forwarding ----------------------------*)
 
@@ -114,6 +112,7 @@ TYPE
 					chan.wsize := U.GetInt( buf, 9 );
 					chan.pmax := U.GetInt( buf, 13 );
 					
+					chan.interactive := TRUE;
 					chan.state := ChanOpen;
 					RETURN TRUE
 				END OpenTunnel;
@@ -203,6 +202,7 @@ TYPE
 				noneblocking: BOOLEAN;
 				recBuffer: POINTER TO ARRAY OF CHAR;
 				rbstart, rbend: LONGINT;
+				interactive: BOOLEAN;
 
 				PROCEDURE Send*( CONST data: ARRAY OF CHAR;  ofs, len: LONGINT;  propagate: BOOLEAN;  VAR res: LONGINT );
 				VAR p: T.Packet; l: LONGINT; t: CHAR;
@@ -222,16 +222,6 @@ TYPE
 					conn.SendPacket( p );  DEC( wsize, len );  res := Streams.Ok
 				END Send;
 
-				PROCEDURE PrintChar( c: CHAR );
-				BEGIN
-					IF (c >= ' ') & (c <= '~') THEN
-						 Out.Char( ' ' );  Out.Char( c )
-					ELSE
-						Out.Char( hexd[ORD( c ) DIV 16] );
-						Out.Char( hexd[ORD( c ) MOD 16] )
-					END;
-					IF c = 0AX THEN  Out.Ln  END
-				END PrintChar;
 
 				PROCEDURE Receive*( VAR data: ARRAY OF CHAR;  ofs, size, min: LONGINT;  VAR len, res: LONGINT );
 				VAR
@@ -327,6 +317,8 @@ TYPE
 						| ChannelEOF:
 								 done := TRUE
 						| ChannelClose:
+								IF interactive THEN  conn.Disconnect( 11, "bye bye" )  END;
+								pt := 0X;
 								state := ChanClosed;
 								done := TRUE
 						| Data:
@@ -461,25 +453,13 @@ TYPE
 				END SendEOF;
 
 
-				PROCEDURE Flush*;  (* consume any incoming packages until connection is quiet *)
+				PROCEDURE IgnoreInput*;  (* consume any incoming packages until connection is quiet *)
 				VAR buf: POINTER TO  ARRAY OF CHAR;
-					len, e, i: LONGINT;  t: CHAR;
+					len: LONGINT;  t: CHAR;
 				BEGIN
 					NEW( buf, MaxPacketSize );
-					WHILE AwaitResponse( ) DO
-						t := ReceivePacket( buf^, len );
-						IF trace THEN
-							PrintPackageType( buf^ );
-							IF t = Data THEN
-								Out.String( " '" );
-								e := 8 + U.GetInt( buf^, 5 );  i := 9;
-								WHILE i <= e DO  PrintChar( buf[i] );  INC( i )  END;
-								Out.Char( "'" )
-							END;
-							Out.Ln
-						END;
-					END
-				END Flush;
+					WHILE AwaitResponse( ) DO  t := ReceivePacket( buf^, len )  END
+				END IgnoreInput;
 
 
 				PROCEDURE Close*;
@@ -487,7 +467,7 @@ TYPE
 				BEGIN
 					NEW( p, ChannelClose, 64 );  p.AppInteger( rchan );  SendPacket( p );
 					clchan := 0;
-					Flush;
+					IgnoreInput;
 					state := ChanClosed
 				END Close;
 
@@ -525,7 +505,7 @@ TYPE
 		chan.pmax := U.GetInt( buf, 13 );
 
 		chan.state := ChanOpen;
-		chan.Flush;
+		chan.IgnoreInput;
 
 		NEW( p, ChannelRequest, 512 );
 		p.AppInteger( chan.rchan );
@@ -556,6 +536,7 @@ TYPE
 		IF chan.ReceivePacket( buf, len ) # ChannelSuccess THEN
 			ErrorResponse( "SSH.OpenSession: shell request", buf );  RETURN NIL
 		END;
+		chan.interactive := interactive;
 		RETURN chan
 	END OpenSession;
 
@@ -675,7 +656,7 @@ TYPE
 			f := Files.Old( locFileName );
 			IF f # NIL THEN
 				chan := OpenSession( conn, FALSE );
-				chan.Flush;	(* skip prompt to stout *)
+				chan.IgnoreInput;	(* skip prompt to stout *)
 				cmd := "stty -echo raw;  scp -q -t ";  Strings.Append( cmd, remFileName );
 				chan.RemoteCommand( cmd );
 				SendFile( f, chan, remFileName );
@@ -741,7 +722,7 @@ TYPE
 			f := Files.Old( locFileName );
 			IF f = NIL THEN
 				chan := OpenSession( conn, FALSE );
-				chan.Flush; (* skip prompt to stdout *)
+				chan.IgnoreInput; (* skip prompt to stdout *)
 				cmd := "stty -echo raw;  scp -q -f ";  Strings.Append( cmd, remFileName );
 				chan.RemoteCommand( cmd );
 				ReceiveFile( chan, locFileName );
