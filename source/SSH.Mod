@@ -310,6 +310,7 @@ TYPE
 				PROCEDURE ReceivePacket*( VAR buf: ARRAY OF CHAR;  VAR len: LONGINT ): CHAR;
 				VAR i, l, add, chan: LONGINT;  pt: CHAR;
 					p: T.Packet;  done: BOOLEAN;
+					chanx, pos, resp: LONGINT;  req: ARRAY 64 OF CHAR;
 				BEGIN
 					IF state = ChanClosed THEN  RETURN 0X  END;
 					done := FALSE;
@@ -326,9 +327,7 @@ TYPE
 						| ChannelEOF:
 								 done := TRUE
 						| ChannelClose:
-								conn.Disconnect( 11, "" );
 								state := ChanClosed;
-								pt := 0X;
 								done := TRUE
 						| Data:
 								l := U.GetInt( buf, 5 );
@@ -349,7 +348,8 @@ TYPE
 								IF buf[5 + l] # 0X THEN
 									(* this client does not accept any global request *)
 									NEW( p, RequestFailure, 64 );
-									conn.SendPacket( p )
+									conn.SendPacket( p );
+									Out.String( "Global request rejected by client" );  Out.Ln
 								END
 						| ChannelOpen:
 								chan := U.GetInt( buf, 1 );
@@ -358,10 +358,19 @@ TYPE
 								p.AppInteger( 1 );   (* reason: prohibited *)
 								p.AppString( "channel open rejected by client" );
 								p.AppString( "" );   (* language tag *)
-								conn.SendPacket( p )
+								conn.SendPacket( p );
+								Out.String( "Channel open request rejected by client" );  Out.Ln;
 						| ChannelRequest:
-							(*	NEW( p, ChannelFailure, 64 );
-								conn.SendPacket( p )	*)
+								chanx := U.GetInt( buf, 1 );
+								pos := 5;  U.GetString( buf, pos, req );  
+								resp := ORD( buf[pos] );
+								IF resp # 0 THEN
+									NEW( p, ChannelFailure, 64 );
+									Out.String( "Channel request received: " );  Out.Int( chanx, 0 );  
+									Out.Char( ' ' );  Out.String( req );  Out.Char( ' ' );  Out.Int( resp, 0 ); 
+									Out.Ln;
+									conn.SendPacket( p )	
+								END
 						ELSE
 							ErrorResponse( "SSH.Channel.read", buf );
 							conn.Disconnect( 2, "protocol error" );
@@ -571,7 +580,7 @@ TYPE
 	VAR errmsg: ARRAY 1024 OF CHAR;
 		p: LONGINT;
 	BEGIN
-		Out.String( msg );
+		Out.Ln;  Out.String( msg );
 		IF buf[0] = OpenFailure THEN
 			Out.String( ": error code = " );  Out.Int( U.GetInt( buf, 5 ), 1 );
 			p := 9;  U.GetString( buf, p, errmsg );
@@ -579,7 +588,7 @@ TYPE
 		ELSIF buf[0] = RequestFailure THEN
 			Out.String( ": request failed " );
 		ELSE
-			Out.String( ": unexpected response packet type: " );  PrintPackageType( buf );  Out.Ln;
+			Out.String( ": unexpected server response, packet type: " );  PrintPackageType( buf );  Out.Ln;
 			ShowResp( buf );
 		END;
 		Out.Ln;
@@ -587,7 +596,7 @@ TYPE
 
 
 	PROCEDURE ShowResp( CONST resp: ARRAY OF CHAR );
-	VAR buf: ARRAY 1024 OF CHAR;
+	VAR buf: ARRAY 2048 OF CHAR;
 		i, j, v: INTEGER;  c: CHAR;  err: BOOLEAN;
 	BEGIN
 		i := 0;  j := 0; 
@@ -872,7 +881,7 @@ END SSH.
 SSHUtilities.SetDebug   0 ~
 SSHUtilities.SetDebug 15 ~
 
-SSH.Send fld@einstein@math.uni-bremen.de
+SSH.Send fld@einstein.math.uni-bremen.de
 	XXX.Mod
 	XXX.Data
 	~
