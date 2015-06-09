@@ -113,11 +113,18 @@ TYPE CRC32*= OBJECT
 			crc := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, CRC32Table[idx])/SYSTEM.VAL(SET, LSH(crc, -8)));
 		END Char;
 		
-		(* nonstandard use - add a LONGINT *)
+		(* nonstandard use - add a LONGINT; LSB *)
 		PROCEDURE Add*(i: LONGINT);
-		VAR idx: LONGINT;
+		VAR idx: LONGINT; 
 		BEGIN
-			idx := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, crc) / SYSTEM.VAL(SET, i)) MOD 100H;
+			i:= SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, crc) / SYSTEM.VAL(SET, i));
+			idx := i MOD 100H;
+			crc := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, CRC32Table[idx])/SYSTEM.VAL(SET, LSH(crc, -8)));
+			idx := i DIV 100H MOD 100H;
+			crc := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, CRC32Table[idx])/SYSTEM.VAL(SET, LSH(crc, -8)));
+			idx := i DIV 10000H MOD 100H;
+			crc := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, CRC32Table[idx])/SYSTEM.VAL(SET, LSH(crc, -8)));
+			idx := i DIV 1000000H MOD 100H;
 			crc := SYSTEM.VAL(LONGINT, SYSTEM.VAL(SET, CRC32Table[idx])/SYSTEM.VAL(SET, LSH(crc, -8)));
 		END Add;
 
