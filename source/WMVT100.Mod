@@ -150,7 +150,8 @@ MODULE WMVT100; (* ejz,  ph *)
 					|07X: (* BEL *)
 					|08X: frame.Goto(frame.GetCol()-1, frame.GetRow(), FALSE)
 					|09X: frame.RightTab()
-					|0AX, 0BX, 0CX: frame.Goto(frame.GetCol(), frame.GetRow()+1, TRUE)
+					|0AX: frame.Goto(0, frame.GetRow()+1, TRUE) (* was fused with below, but lone LFs may occur in some textual responses like HTML from some sites*)
+					|0BX, 0CX: frame.Goto(frame.GetCol(), frame.GetRow()+1, TRUE)
 					|0DX: IF R.Peek() = 0AX THEN
 									R.Char(ch); frame.Goto(0, frame.GetRow()+1, TRUE)
 								ELSE
