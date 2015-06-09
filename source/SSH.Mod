@@ -105,7 +105,7 @@ TYPE
 
 					remConn.SendPacket( p );
 					IF remConn.ReceivePacket( buf, len ) # OpenConfirm THEN
-						ErrorResponse( "SSH.OpenTunnel", buf );
+						ErrorResponse( "SSH.OpenTunnel", buf, len );
 						RETURN FALSE
 					END;
 					chan.rchan := U.GetInt( buf, 5 );
@@ -318,7 +318,7 @@ TYPE
 								 done := TRUE
 						| ChannelClose:
 								IF interactive THEN  conn.Disconnect( 11, "bye bye" )  END;
-								pt := 0X;
+								pt := 0X;  len := 0;
 								state := ChanClosed;
 								done := TRUE
 						| Data:
@@ -364,11 +364,7 @@ TYPE
 									conn.SendPacket( p )	
 								END
 						ELSE
-							ErrorResponse( "SSH.Channel.read", buf );
-							conn.Disconnect( 2, "protocol error" );
-							state := ChanClosed;
-							pt := 0X;
-							done := TRUE
+							ErrorResponse( "SSH.Channel.read", buf, len );  Close
 						END;
 					UNTIL done;
 					RETURN pt
@@ -464,11 +460,12 @@ TYPE
 
 				PROCEDURE Close*;
 				VAR p: T.Packet;
+					buf: ARRAY 256 OF CHAR;  len: LONGINT;  type: CHAR;
 				BEGIN
+					NEW( p, ChannelEOF, 64 );  p.AppInteger( rchan );  SendPacket( p );
 					NEW( p, ChannelClose, 64 );  p.AppInteger( rchan );  SendPacket( p );
 					clchan := 0;
-					IgnoreInput;
-					state := ChanClosed
+					WHILE state = ChanOpen DO  type := ReceivePacket( buf, len )  END;
 				END Close;
 
 				PROCEDURE & Init*( conn: T.Connection );
@@ -485,7 +482,7 @@ TYPE
 	PROCEDURE OpenSession*( conn: T.Connection;  interactive: BOOLEAN ): Channel;
 	VAR len: LONGINT;
 		buf: ARRAY 3000 OF CHAR;
-		p: T.Packet;  chan: Channel;
+		p: T.Packet;  chan: Channel;  resp: CHAR;
 	BEGIN
 		NEW( chan, conn );
 
@@ -497,7 +494,7 @@ TYPE
 
 		conn.SendPacket( p );
 		IF conn.ReceivePacket( buf, len ) # OpenConfirm THEN
-			ErrorResponse( "SSH.OpenSession", buf );  RETURN NIL
+			ErrorResponse( "SSH.OpenSession", buf, len );  RETURN NIL
 		END;
 
 		chan.rchan := U.GetInt( buf, 5 );
@@ -533,8 +530,9 @@ TYPE
 		p.AppChar( 1X );   (* want reply *)
 		chan.SendPacket( p );
 
-		IF chan.ReceivePacket( buf, len ) # ChannelSuccess THEN
-			ErrorResponse( "SSH.OpenSession: shell request", buf );  RETURN NIL
+		resp := chan.ReceivePacket( buf, len );
+		IF (resp # ChannelSuccess) & (resp # OpenConfirm) THEN
+			ErrorResponse( "SSH.OpenSession: shell request", buf, len );  RETURN NIL
 		END;
 		chan.interactive := interactive;
 		RETURN chan
@@ -542,14 +540,14 @@ TYPE
 
 (*-------------------------- misc -------------------------------------*)
 
-	PROCEDURE PrintPackageType( CONST p: ARRAY OF CHAR );
+	PROCEDURE PrintPacketType( CONST p: ARRAY OF CHAR );
 	VAR t: LONGINT;
 	BEGIN
 		t := ORD( p[0] );
 		Out.Char( hexd[t DIV 16] );  Out.Char( hexd[t MOD 16] );
 		Out.String( 'X(' );  Out.Int( t, 0 );  Out.String( '), channel ' );
 		Out.Int( U.GetInt( p, 1 ), 0 );  Out.Char( ' ' )
-	END PrintPackageType;
+	END PrintPacketType;
 
 	PROCEDURE Error( CONST msg: ARRAY OF CHAR );
 	BEGIN
@@ -557,7 +555,7 @@ TYPE
 		Out.String( "### Error: " ); Out.String( msg );  Out.Ln
 	END Error;
 
-	PROCEDURE ErrorResponse( CONST msg, buf: ARRAY OF CHAR );
+	PROCEDURE ErrorResponse( CONST msg, buf: ARRAY OF CHAR; len: LONGINT );
 	VAR errmsg: ARRAY 1024 OF CHAR;
 		p: LONGINT;
 	BEGIN
@@ -569,34 +567,28 @@ TYPE
 		ELSIF buf[0] = RequestFailure THEN
 			Out.String( ": request failed " );
 		ELSE
-			Out.String( ": unexpected server response, packet type: " );  PrintPackageType( buf );  Out.Ln;
-			ShowResp( buf );
+			Out.String( ": unexpected server response, packet type: " );  PrintPacketType( buf );  Out.Ln;
+			ShowResp( buf, len );
 		END;
 		Out.Ln;
 	END ErrorResponse;
 
 
-	PROCEDURE ShowResp( CONST resp: ARRAY OF CHAR );
-	VAR buf: ARRAY 2048 OF CHAR;
-		i, j, v: INTEGER;  c: CHAR;  err: BOOLEAN;
+	PROCEDURE ShowResp( CONST buf: ARRAY OF CHAR; len: LONGINT );
+	VAR i: LONGINT;  c: CHAR; 
 	BEGIN
-		i := 0;  j := 0; 
-		err := ORD( resp[0] ) IN {1, 2};
-		IF err THEN  i := 1  END;
-		REPEAT
-			c := resp[i];  INC( i );
-			IF c >= ' ' THEN  buf[j] := c;  INC( j )
+		i := 0;
+		WHILE i < len DO
+			c := buf[i]; INC( i );
+			IF (c < ' ') OR (c > '~') OR (i = 1) THEN
+				Out.Char( hexd[ORD(c) DIV 16] );
+				Out.Char( hexd[ORD(c) MOD 16] );
 			ELSE
-				v := ORD( c );  buf[j] := '\';  INC( j );
-				buf[j] := CHR( v DIV 64 MOD 8 + 48 );  INC( j );
-				buf[j] := CHR( v DIV 8 MOD 8 + 48 );  INC( j );
-				buf[j] := CHR( v MOD 8 + 48 );  INC( j );
-			END
-		UNTIL (i > 256) OR (i >= LEN( resp ));
-		FOR i := 0 TO j - 1 DO  
-			IF i MOD 64 = 0 THEN  Out.Ln  END;
-			Out.Char( buf[i] )
-		END
+				Out.Char( ' ' ); Out.Char( c )
+			END;
+			IF i MOD 32 = 0 THEN  Out.Ln  ELSE  Out.Char( ' ' )  END
+		END;
+		IF len > 0 THEN  Out.Ln  END
 	END ShowResp;
 
 
@@ -681,7 +673,7 @@ TYPE
 		Files.OpenReader( r, f, 0 );  i := 0;  j := 0;
 		WHILE i < flen DO
 			r.Char( buf[j] );  INC( i );  INC( j );
-			IF (j = MaxPacketSize) OR (j = chan.pmax) THEN
+			IF (j = MaxPacketSize-64) OR (j = chan.pmax) THEN
 				chan.SendBuffer( buf, j );  j := 0;  Out.Char( '.' )
 			END
 		END;
@@ -744,7 +736,7 @@ TYPE
 		chan.Sync;  chan.ReceiveLine( pr, p );
 		WHILE pr[0] # 'C' DO
 			error := ORD( pr[0] ) IN {1, 2};
-			IF error THEN  ShowResp( pr );  RETURN   END;
+			IF error THEN  ShowResp( pr, 64 );  RETURN   END;
 			chan.ReceiveLine( pr, p )
 		END;
 		flen := 0;  i := 0;
@@ -859,23 +851,18 @@ BEGIN
 END SSH.
 
 
-SSHUtilities.SetDebug   0 ~
-SSHUtilities.SetDebug 15 ~
 
-SSH.Send fld@einstein.math.uni-bremen.de
-	XXX.Mod
-	XXX.Data
-	~
-	Test.Data
-	SSH.KnownHosts.Data
-	SSH.tar
-	SSHTransport.Mod
+SSH.Send fld@x02.math.uni-bremen.de
+	xxx:zzz5
+	xxx:zzz6
 	~
 
-SSH.Receive fld@einstein.math.uni-bremen.de
-	XXX.Mod:TTTT.Mod
+
+SSH.Receive fld@erwin.math.uni-bremen.de
+	zzz6:yyyya
+	zzz5:yyyyb
 	~
 
-SystemTools.Free SSH SSHAuthorize SSHTransport SSHKeys  ~
+SystemTools.Free SSHClient SSH SSHAuthorize SSHTransport SSHKeys  ~
 
 
