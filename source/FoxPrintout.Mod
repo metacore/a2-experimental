@@ -67,7 +67,7 @@ TYPE
 		VAR str: Scanner.IdentifierString;
 		BEGIN
 			Basic.GetString(x,str);
-			IF useCase OR (x = Global.SystemName) OR (x = Global.systemName) THEN
+			IF useCase THEN
 				IF case = Scanner.Lowercase THEN Small(str,str); ELSE Big(str,str); END;
 			END;
 			w.String(str);
@@ -643,7 +643,10 @@ TYPE
 			IF x.symbol IS SyntaxTree.Operator THEN
 				w.String('"'); Identifier(x.symbol.name); w.String('"');
 			ELSE
-				useCase := (x.symbol IS SyntaxTree.Builtin) OR ((x.symbol IS SyntaxTree.TypeDeclaration) & (x.symbol(SyntaxTree.TypeDeclaration).declaredType IS SyntaxTree.BasicType));
+				useCase := 
+					(x.symbol IS SyntaxTree.Builtin) 
+					OR ((x.symbol IS SyntaxTree.TypeDeclaration) & (x.symbol(SyntaxTree.TypeDeclaration).declaredType IS SyntaxTree.BasicType))
+					OR (x.symbol IS SyntaxTree.Module) & ((x.symbol.name = Global.systemName) OR (x.symbol.name = Global.SystemName));
 				Identifier(x.symbol.name);
 				useCase := FALSE;
 			END;
