@@ -253,14 +253,14 @@ TYPE
 			node.sortHint := sortHint;
 			node.color := color;
 			IF style = {} THEN
-				font := PETTrees.FontOberon10Plain;
+				font := PETTrees.FontPlain;
 			ELSIF style = {WMGraphics.FontBold} THEN
-				font := PETTrees.FontOberon10Bold;
+				font := PETTrees.FontBold;
 			ELSIF style = {WMGraphics.FontItalic} THEN
-				font := PETTrees.FontOberon10Italic;
+				font := PETTrees.FontItalic;
 			ELSE
 				(* unknown style *)
-				font := PETTrees.FontOberon10Plain;
+				font := PETTrees.FontPlain;
 			END;
 			node.font := font;
 			IF (infoItem # NIL) THEN

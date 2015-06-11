@@ -112,7 +112,7 @@ TYPE
 
 			NEW(treeView); treeView.alignment.Set(WMComponents.AlignClient);
 			treeView.clSelected.Set(0B0B0FFA0H);
-			treeView.SetFont(treeFontOberon10Plain);
+			treeView.SetFont(treeFontPlain);
 			SELF.AddContent(treeView);
 
 			tree := treeView.GetTree();
@@ -573,14 +573,14 @@ TYPE
 			newInfo.sortInfo := sortInfo;
 			newInfo.color := color;
 			IF style = {} THEN
-				font := treeFontOberon10Plain;
+				font := treeFontPlain;
 			ELSIF style = {WMGraphics.FontBold} THEN
-				font := treeFontOberon10Bold;
+				font := treeFontBold;
 			ELSIF style = {WMGraphics.FontItalic} THEN
-				font := treeFontOberon10Italic;
+				font := treeFontItalic;
 			ELSE
 				(* unknown style *)
-				font := treeFontOberon10Plain;
+				font := treeFontPlain;
 			END;
 			IF (node # NIL) THEN
 				moduleNode := GetModuleNode(node);
@@ -1251,7 +1251,7 @@ TYPE
 
 VAR
 	PrototypeShowTypeHierarchy : WMProperties.BooleanProperty;
-	treeFontOberon10Plain, treeFontOberon10Bold, treeFontOberon10Italic: WMGraphics.Font;
+	treeFontPlain, treeFontBold, treeFontItalic: WMGraphics.Font;
 
 PROCEDURE GetColor(modifiers : SET; defaultColor : LONGINT) : LONGINT;
 VAR color : LONGINT;
@@ -1267,9 +1267,9 @@ END GetColor;
 BEGIN
 	NEW(PrototypeShowTypeHierarchy, NIL, Strings.NewString("ShowTypeHierarchy"), Strings.NewString("Show type hierarchy?"));
 	PrototypeShowTypeHierarchy.Set(FALSE);
-	treeFontOberon10Plain := WMGraphics.GetFont("Oberon", 10, {});
-	treeFontOberon10Bold := WMGraphics.GetFont("Oberon", 10, {WMGraphics.FontBold});
-	treeFontOberon10Italic := WMGraphics.GetFont("Oberon", 10, {WMGraphics.FontItalic});
+	treeFontPlain := WMGraphics.GetFont("Oberon", 10, {});
+	treeFontBold := WMGraphics.GetFont("Oberon", 10, {WMGraphics.FontBold});
+	treeFontItalic := WMGraphics.GetFont("Oberon", 10, {WMGraphics.FontItalic});
 END ModuleTrees.
 
 Tar.Create ModuleTreesIcons.tar

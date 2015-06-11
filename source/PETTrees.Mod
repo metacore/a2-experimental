@@ -63,7 +63,7 @@ TYPE
 			Init^;
 			pos := NIL;
 			color := WMGraphics.Black;
-			font := FontOberon10Plain;
+			font := FontPlain;
 			external := FALSE;
 		END Init;
 
@@ -109,7 +109,7 @@ TYPE
 
 			NEW(treeView); treeView.alignment.Set(WMComponents.AlignClient);
 			treeView.clSelected.Set(0B0B0FFA0H);
-			treeView.SetFont(FontOberon10Plain);
+			treeView.SetFont(FontPlain);
 			SELF.AddContent(treeView);
 
 			tree := treeView.GetTree();
@@ -501,10 +501,13 @@ TYPE
 	Factory* = PROCEDURE() : Tree;
 
 VAR
-	FontOberon10Plain-, FontOberon10Bold-, FontOberon10Italic-: WMGraphics.Font;
+	FontPlain-, FontBold-, FontItalic-: WMGraphics.Font;
+	font : WMGraphics.Font;
 
 BEGIN
-	FontOberon10Plain := WMGraphics.GetFont("Oberon", 10, {});
-	FontOberon10Bold := WMGraphics.GetFont("Oberon", 10, {WMGraphics.FontBold});
-	FontOberon10Italic := WMGraphics.GetFont("Oberon", 10, {WMGraphics.FontItalic});
+	font := WMGraphics.GetDefaultFont();
+
+	FontPlain := WMGraphics.GetFont(font.name, font.size, {});
+	FontBold := WMGraphics.GetFont(font.name, font.size, {WMGraphics.FontBold});
+	FontItalic := WMGraphics.GetFont(font.name, font.size, {WMGraphics.FontItalic});
 END PETTrees.
