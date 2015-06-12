@@ -1253,23 +1253,26 @@ VAR
 	PrototypeShowTypeHierarchy : WMProperties.BooleanProperty;
 	treeFontPlain, treeFontBold, treeFontItalic: WMGraphics.Font;
 
-PROCEDURE GetColor(modifiers : SET; defaultColor : LONGINT) : LONGINT;
-VAR color : LONGINT;
-BEGIN
-	IF (ModuleParser.Exclusive IN modifiers) THEN color := ColorExclusive;
-	ELSIF (ModuleParser.HasExclusiveBlock IN modifiers) THEN color := ColorHasExclusiveBlock;
-	ELSE
-		color := defaultColor;
-	END;
-	RETURN color;
-END GetColor;
+	PROCEDURE GetColor(modifiers : SET; defaultColor : LONGINT) : LONGINT;
+	VAR color : LONGINT;
+	BEGIN
+		IF (ModuleParser.Exclusive IN modifiers) THEN color := ColorExclusive;
+		ELSIF (ModuleParser.HasExclusiveBlock IN modifiers) THEN color := ColorHasExclusiveBlock;
+		ELSE
+			color := defaultColor;
+		END;
+		RETURN color;
+	END GetColor;
 
+VAR font : WMGraphics.Font;
 BEGIN
 	NEW(PrototypeShowTypeHierarchy, NIL, Strings.NewString("ShowTypeHierarchy"), Strings.NewString("Show type hierarchy?"));
 	PrototypeShowTypeHierarchy.Set(FALSE);
-	treeFontPlain := WMGraphics.GetFont("Oberon", 10, {});
-	treeFontBold := WMGraphics.GetFont("Oberon", 10, {WMGraphics.FontBold});
-	treeFontItalic := WMGraphics.GetFont("Oberon", 10, {WMGraphics.FontItalic});
+
+	font := WMGraphics.GetDefaultFont();
+	treeFontPlain := WMGraphics.GetFont(font.name, font.size, font.style);
+	treeFontBold := WMGraphics.GetFont(font.name, font.size, {WMGraphics.FontBold});
+	treeFontItalic := WMGraphics.GetFont(font.name, font.size, {WMGraphics.FontItalic});
 END ModuleTrees.
 
 Tar.Create ModuleTreesIcons.tar
