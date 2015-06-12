@@ -122,6 +122,17 @@ BEGIN
 	END;
 END GetBoolean;
 
+PROCEDURE GetColor*(CONST key : ARRAY OF CHAR; VAR value : LONGINT; VAR res : LONGINT);
+VAR string : ARRAY 16 OF CHAR;
+BEGIN
+	Get(key, string, res);
+	IF (res = Ok) THEN
+		Strings.TrimWS(string);
+		Strings.HexStrToInt(string, value, res); (*! Hack: Strings.Ok and Configuration.Ok may be different! *)
+	END;
+END GetColor;
+
+
 PROCEDURE GetInteger*(CONST key : ARRAY OF CHAR; VAR value : LONGINT; VAR res : LONGINT);
 VAR string : ARRAY 16 OF CHAR;
 BEGIN
@@ -167,6 +178,13 @@ PROCEDURE PutBoolean*(CONST key : ARRAY OF CHAR; value : BOOLEAN; VAR res : LONG
 BEGIN
 	IF value THEN Put(key, "TRUE", res) ELSE Put(key, "FALSE", res); END;
 END PutBoolean;
+
+PROCEDURE PutColor*(CONST key : ARRAY OF CHAR; value : LONGINT; VAR res : LONGINT);
+VAR string : ARRAY 9 OF CHAR;
+BEGIN
+	Strings.IntToHexStr(value, 8, string);
+	Put(key, string, res);
+END PutColor;
 
 PROCEDURE PutInteger*(CONST key : ARRAY OF CHAR; value : LONGINT; VAR res : LONGINT);
 VAR string : ARRAY 16 OF CHAR;
