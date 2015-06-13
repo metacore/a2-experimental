@@ -54,7 +54,7 @@ TYPE
 		BEGIN
 			SELF.text := text;
 			nofOldBytes := 0;
-			currentAttributes := Texts.GetDefaultAttributes();
+			currentAttributes := GetDefaultAttributes();
 			fontColor := currentAttributes.color;
 			fontBgColor := currentAttributes.bgcolor;
 			fontVOff := currentAttributes.voff;
@@ -2548,6 +2548,23 @@ BEGIN
 		RETURN textReader
 	END
 END GetTextReader;
+
+PROCEDURE GetDefaultAttributes* () : Texts.Attributes;
+VAR
+	defaultAttributes 			: Texts.Attributes;
+	font 						: WMGraphics.Font;
+	textColor, textBackColor	: LONGINT;
+	res 						: LONGINT;
+BEGIN
+	NEW( defaultAttributes );
+	Configuration.GetColor( "WindowManager.ColorScheme.Default.TextBackColor", textBackColor, res );
+	IF res # Configuration.Ok THEN textBackColor := 0H; END; (* transparent *)
+	Configuration.GetColor( "WindowManager.ColorScheme.Default.TextColor", textColor, res );
+	IF res # Configuration.Ok THEN textColor := 0FFH; END; (* black *)
+	font := WMGraphics.GetDefaultFont( );
+	defaultAttributes.Set( textColor, textBackColor, 0, font.name, font.size, font.style );
+	RETURN defaultAttributes
+END GetDefaultAttributes;
 
 BEGIN
 	GetConfig;

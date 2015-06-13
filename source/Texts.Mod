@@ -1484,6 +1484,7 @@ BEGIN {EXCLUSIVE}
 	RETURN lastText
 END GetLastText;
 
+(*! Moved to the TextUtilities
 PROCEDURE GetDefaultAttributes* () : Attributes;
 VAR defaultAttributes : Attributes;
 BEGIN
@@ -1491,7 +1492,7 @@ BEGIN
 	defaultAttributes.Set(0FFH, 0H, 0, "Oberon", 10, {});
 	RETURN defaultAttributes
 END GetDefaultAttributes;
-
+*)
 BEGIN
 	NEW(pStyles, 4); nofPStyles := 0;
 	NEW(cStyles, 4); nofCStyles := 0;
