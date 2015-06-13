@@ -6,7 +6,6 @@ IMPORT KernelLog, IP, TCP, TLS, Configuration, Strings;
 
 CONST
 	Ok* = TCP.Ok;
-
 	Trace = TRUE;
 
 TYPE
@@ -14,7 +13,6 @@ TYPE
 		VAR res: LONGINT; service, client: TCP.Connection; root, agent: Agent; new: NewAgent;
 
 		(** Start is called indirectly by OpenService. *)
-
 		PROCEDURE &Start*(port: LONGINT; new: NewAgent; VAR res: LONGINT);
 		BEGIN
 			NEW(service); service.Open(port, IP.NilAdr, TCP.NilPort, res);
@@ -73,7 +71,6 @@ TYPE
 		END
 	END Service;
 
-
 TYPE
 	TLSService* = OBJECT (Service)	(** TCP service object - handles opening and closing of connections *)
 		VAR
@@ -81,7 +78,6 @@ TYPE
 		  ctx: TLS.Context; cipherSuites: ARRAY TLS.Suites OF LONGINT;
 
 		(** Start is called indirectly by OpenService. *)
-
 		PROCEDURE &Start*(port: LONGINT; new: NewAgent; VAR res: LONGINT);
 			VAR
 				newService: TLS.Connection;
@@ -126,8 +122,6 @@ TYPE
 				KernelLog.String(" open "); KernelLog.Int(res, 1); KernelLog.Exit
 			END
 		END Start;
-
-
 	END TLSService;
 
 
@@ -138,16 +132,15 @@ TYPE
 			next: Agent; s-: Service;
 
 		(** Start is called indirectly by the Service object. *)
-
 		PROCEDURE &Start*(c: TCP.Connection; s: Service);
 		VAR str: ARRAY 32 OF CHAR;
 		BEGIN
 			SELF.client := c; SELF.s := s;
 			IF Trace & (c # NIL) THEN
-				IP.AdrToStr(c.fip, str);
 				KernelLog.Enter; KernelLog.String("Agent "); KernelLog.Int(c.lport, 1);
-				KernelLog.String(" connected to "); KernelLog.String(str);
-				KernelLog.Char(" "); KernelLog.Int(c.fport, 1); KernelLog.Exit
+				KernelLog.String(" on interface "); IP.AdrToStr(c.int.localAdr, str); KernelLog.String(str); 
+				KernelLog.String(" connected to "); IP.AdrToStr(c.fip, str); KernelLog.String(str);
+				KernelLog.Char(":"); KernelLog.Int(c.fport, 1); KernelLog.Exit;
 			END
 		END Start;
 
@@ -157,7 +150,6 @@ TYPE
 		END Stop;
 
 		(** Terminate is called by the body of the extended object to terminate itself. *)
-
 		PROCEDURE Terminate*;
 		BEGIN
 			client.Close();
@@ -172,6 +164,7 @@ TYPE
 
 END TCPServices.
 
+SystemTools.FreeDownTo TCP ~
 (**
 Notes
 
