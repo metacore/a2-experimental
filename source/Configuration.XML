@@ -67,6 +67,12 @@ To update: Configuration.Init ~
 <!-- WindowManager -->
 
 	<Section name="WindowManager">
+		<Section name="ColorScheme">
+			<Section name="Default">
+				<Setting name "TextBackColor" value="0H"/>
+				<Setting name "TextColor" value="0FFH"/>
+			</Section>
+		</Section>
 		<Section name="FontManager">
 			<Section name="DefaultFont">
 				<Setting name="Name" value="Oberon"/>
