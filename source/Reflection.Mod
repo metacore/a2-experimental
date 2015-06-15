@@ -72,10 +72,16 @@ VAR
 
 	(* Get a compressed refblk number. *)
 	PROCEDURE GetNum( refs: Modules.Bytes;  VAR i, num: LONGINT );
-	VAR n, s: LONGINT;  x: CHAR;
+	VAR
+		n, s: LONGINT;  x: CHAR;
 	BEGIN
 		IF NewObjectFile(refs) THEN
-			num := SYSTEM.VAL(LONGINT,refs[i]); INC(i,4);
+			(* Copying byte by byte to avoid unaligned memory accesses on ARM *)
+			SYSTEM.PUT8(ADDRESSOF(num), refs[i]);
+			SYSTEM.PUT8(ADDRESSOF(num) + 1, refs[i + 1]);
+			SYSTEM.PUT8(ADDRESSOF(num) + 2, refs[i + 2]);
+			SYSTEM.PUT8(ADDRESSOF(num) + 3, refs[i + 3]);
+			INC(i,4);
 		ELSE
 			s := 0;  n := 0;  x := refs[i];  INC( i );
 			WHILE ORD( x ) >= 128 DO INC( n, ASH( ORD( x ) - 128, s ) );  INC( s, 7 );  x := refs[i];  INC( i ) END;
