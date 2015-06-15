@@ -878,6 +878,7 @@ TYPE
 		PROCEDURE Section*(in: IntermediateCode.Section; out: BinaryCode.Section);
 		VAR ticket: Ticket;
 		BEGIN
+			virtualRegisters.Init(virtualRegisters.parts);
 			Section^(in,out);
 			ticket := tickets.live;
 			IF ticket # NIL THEN HALT(100) END;
