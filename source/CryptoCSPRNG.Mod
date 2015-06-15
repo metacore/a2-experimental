@@ -1,4 +1,4 @@
-MODULE CryptoCSPRNG;	(** AUTHOR "GF"; PURPOSE "Cryptographically Secure Pseudo-Random Generator."*)
+)MODULE CryptoCSPRNG;	(** AUTHOR "GF"; PURPOSE "Cryptographically Secure Pseudo-Random Generator."*)
  
  
 IMPORT  Machine, Clock, Heaps, SHA3 := CryptoSHA3(*, Out := KernelLog*);
@@ -37,7 +37,7 @@ IMPORT  Machine, Clock, Heaps, SHA3 := CryptoSHA3(*, Out := KernelLog*);
 		Clock.Get( t, d );  
 		dt := LONG( d ) * 1000000H + t;
 		Heaps.GetHeapInfo( total, free, largest ); 
-		RETURN  (tm + 4*dt + Heaps.Nmark) * Heaps.Ngc + (total - free + largest )
+		RETURN  (tm + 4*dt + Heaps.Nmark) * (Heaps.Ngc + 1) + (total - free + largest )
 	END Noise;
 	
 	(*
