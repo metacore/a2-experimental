@@ -1,4 +1,4 @@
-)MODULE CryptoCSPRNG;	(** AUTHOR "GF"; PURPOSE "Cryptographically Secure Pseudo-Random Generator."*)
+MODULE CryptoCSPRNG;	(** AUTHOR "GF"; PURPOSE "Cryptographically Secure Pseudo-Random Generator."*)
  
  
 IMPORT  Machine, Clock, Heaps, SHA3 := CryptoSHA3(*, Out := KernelLog*);
