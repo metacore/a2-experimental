@@ -502,7 +502,7 @@ END Put2;
 
 (** Get a 32-bit host value from buf[ofs..ofs+3] *)
 
-PROCEDURE Get4*(VAR buf: ARRAY OF CHAR; ofs: LONGINT): LONGINT;
+PROCEDURE Get4*(CONST buf: ARRAY OF CHAR; ofs: LONGINT): LONGINT;
 CODE {SYSTEM.i386}
 	MOV EBX, [EBP+ofs]
 	MOV ECX, [EBP+buf]
@@ -511,7 +511,7 @@ END Get4;
 
 (** Get a 16-bit host value from buf[ofs..ofs+1] *)
 
-PROCEDURE Get2*(VAR buf: ARRAY OF CHAR; ofs: LONGINT): LONGINT;
+PROCEDURE Get2*(CONST buf: ARRAY OF CHAR; ofs: LONGINT): LONGINT;
 CODE {SYSTEM.i386}
 	MOV EBX, [EBP+ofs]
 	MOV ECX, [EBP+buf]
@@ -545,7 +545,7 @@ END PutNet2;
 
 (** Get a 32-bit network value from buf[ofs..ofs+3] in host byte order *)
 
-PROCEDURE GetNet4*(VAR buf: ARRAY OF CHAR; ofs: LONGINT): LONGINT;
+PROCEDURE GetNet4*(CONST buf: ARRAY OF CHAR; ofs: LONGINT): LONGINT;
 CODE {SYSTEM.i386}
 	MOV EBX, [EBP+ofs]
 	MOV ECX, [EBP+buf]
@@ -557,7 +557,7 @@ END GetNet4;
 
 (** Get a 16-bit network value from buf[ofs..ofs+1] in host byte order *)
 
-PROCEDURE GetNet2*(VAR buf: ARRAY OF CHAR; ofs: LONGINT): LONGINT;
+PROCEDURE GetNet2*(CONST buf: ARRAY OF CHAR; ofs: LONGINT): LONGINT;
 CODE {SYSTEM.i386}
 	MOV EBX, [EBP+ofs]
 	MOV ECX, [EBP+buf]
