@@ -9,7 +9,12 @@ MODULE WSock32; (** non-portable / source: Win32.WSock32.Mod *)	(* ejz  *)
 		WSADescriptionLen* = 256; WSASysStatusLen* = 128;
 		AFINet* = 2; PFINet* = AFINet;
 		SockStream* = 1;
+		IPProtoIP* = 0;
+		IPProtoICMP* = 1;
+		IPProtoIGMP* = 2;
 		IPProtoTCP* = 6;
+		IPProtoUDP* = 17;
+		IPProtoRAW* = 255;
 		InvalidSocket* = -1;
 		SOMaxConn* = 07FFFFFFFH;
 		WSABaseErr = 10000;
@@ -19,7 +24,7 @@ MODULE WSock32; (** non-portable / source: Win32.WSock32.Mod *)	(* ejz  *)
 
 		SocketError*= -1;
 		SockDGram* = 2; SockRaw* = 3;
-		IPProtoICMP* = 1; IPProtoUDP* = 17;
+
 		MAXGETHOSTSTRUCT* = 1024;
 		FDRead* = 01H; FDWrite* = 02H; FDAccept *= 08H; FDConnect* = 010H; FDClose* = 020H;
 		WSAEInval* = WSABaseErr+22; WSAEWouldBlock* = WSABaseErr+35;
@@ -30,6 +35,9 @@ MODULE WSock32; (** non-portable / source: Win32.WSock32.Mod *)	(* ejz  *)
 		MsgPeek* = 2;
 
 		SDReceive*=0; SDSend*=1; SDboth* = 2; (* graceful shutdown modes *)
+		
+		SIORcvAll* = LONGINT(98000001H);
+		
 	TYPE
 		TimeVal* = POINTER TO TimeValDesc;
 		TimeValDesc* = RECORD
@@ -83,6 +91,8 @@ typedef struct fd_set {
 		WSAProtocolInfo* = RECORD
 			data: ARRAY 372 OF SYSTEM.BYTE
 		END;
+		
+		PArray = POINTER TO ARRAY 2014 OF CHAR;
 
 
 		(** The Windows Sockets hostent structure is used by functions to store information about a given host,
@@ -90,12 +100,12 @@ typedef struct fd_set {
 		LPHostent* = ADDRESS;
 		PHostent*= POINTER TO Hostent;
 		Hostent* = RECORD
-			hName*, (* pointer to array of char *)
-			hAliases*:  (* pointer to array of pointer to array of char *)
+			hName*:ADDRESS; (*POINTER TO ARRAY 256 OF CHAR*); (* pointer to array of char *)
+			hAliases*: (*POINTER TO ARRAY OF POINTER TO ARRAY OF CHAR*) (* pointer to array of pointer to array of char *)
 			ADDRESS;
 			hAddrtype*, hLength*: INTEGER;
-			hAddrList*: (* pointer to array of pointer of address (with len hLength) *)
-			ADDRESS
+			hAddrList*: (*POINTER TO ARRAY 10 OF POINTER TO ARRAY 1024 OF CHAR;*) (*PsockaddrIn*)(*Paddrinfo*)(* pointer to array of pointer of address (with len hLength) *)
+			ADDRESS;
 		END;
 
 		Error = OBJECT
@@ -135,6 +145,22 @@ typedef struct fd_set {
 
 		(** The Windows Sockets WSAStartup function initiates use of Ws2_32.dll by a process. *)
 		WSAStartup-: PROCEDURE {WINAPI} (wVersionRequested: LONGINT; VAR lpWSAData: WSAData): LONGINT;
+
+		WSAIoctl-: PROCEDURE {WINAPI} (s: Socket; ioControlCode:LONGINT; VAR in: LONGINT; inSize:LONGINT;
+				VAR outBuffer:ARRAY OF CHAR; outBufLen: LONGINT; VAR lenReturned:LONGINT;  Overlapped: LONGINT; completionRoutine: LONGINT): LONGINT;
+
+(*int WSAIoctl(
+  _In_  SOCKET                             s,
+  _In_  DWORD                              dwIoControlCode,
+  _In_  LPVOID                             lpvInBuffer,
+  _In_  DWORD                              cbInBuffer,
+  _Out_ LPVOID                             lpvOutBuffer,
+  _In_  DWORD                              cbOutBuffer,
+  _Out_ LPDWORD                            lpcbBytesReturned,
+  _In_  LPWSAOVERLAPPED                    lpOverlapped,
+  _In_  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
+);
+*)
 
 		(** The Windows Sockets accept function permits an incoming connection attempt on a socket. *)
 		accept-: PROCEDURE {WINAPI} (s: Socket; VAR addr: ARRAY   OF SYSTEM.BYTE; VAR addrlen: LONGINT): Socket;
@@ -190,7 +216,7 @@ typedef struct fd_set {
 		recv-: PROCEDURE {WINAPI} (s: Socket; VAR buf: ARRAY   OF SYSTEM.BYTE; len: LONGINT; flags: SET): LONGINT;
 
 		(** The Windows Sockets recvfrom function receives a datagram and stores the source address. *)
-		recvfrom-: PROCEDURE {WINAPI} (s: Socket; VAR buf: ARRAY   OF SYSTEM.BYTE; len: LONGINT; flags: LONGINT; VAR from: ARRAY   OF SYSTEM.BYTE; VAR fromlen: LONGINT): LONGINT;
+		recvfrom-: PROCEDURE {WINAPI} (s: Socket; VAR buf: ARRAY   OF SYSTEM.BYTE; len: LONGINT; flags: LONGINT; VAR from: sockaddrIn (*VAR from: ARRAY   OF SYSTEM.BYTE*); VAR fromlen: LONGINT): LONGINT;
 
 		(**  The select function determines the status of one or more sockets, waiting if necessary, to perform synchronous I/O *)
 		select-: PROCEDURE {WINAPI} (nfds:INTEGER; VAR readfds,writefds,exceptfds: FDSet; timeout: TimeVal): LONGINT;
@@ -238,6 +264,7 @@ typedef struct fd_set {
 		Kernel32.GetProcAddress(wsock32, "WSAGetLastError", SYSTEM.VAL(ADDRESS, WSAGetLastError));
 		Kernel32.GetProcAddress(wsock32, "WSASocketA", SYSTEM.VAL(ADDRESS, WSASocket));
 		Kernel32.GetProcAddress(wsock32, "WSAStartup", SYSTEM.VAL(ADDRESS, WSAStartup));
+		Kernel32.GetProcAddress(wsock32, "WSAIoctl", SYSTEM.VAL(ADDRESS, WSAIoctl));
 		Kernel32.GetProcAddress(wsock32, "accept", SYSTEM.VAL(ADDRESS, accept));
 		Kernel32.GetProcAddress(wsock32, "bind", SYSTEM.VAL(ADDRESS, bind));
 		Kernel32.GetProcAddress(wsock32, "closesocket", SYSTEM.VAL(ADDRESS, closesocket));
@@ -391,3 +418,5 @@ typedef struct fd_set {
 BEGIN
 	InitErrs(); Init();
 END WSock32.
+
+SystemTools.FreeDownTo WSock32~
