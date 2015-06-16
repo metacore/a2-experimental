@@ -1127,11 +1127,13 @@ TYPE
 		END SetSyntaxHighlighter;
 
 		PROCEDURE ShowLineNumbers(enabled : BOOLEAN);
+		VAR font : WMGraphics.Font;
 		BEGIN
+			font := GetFont( );
 			IF enabled THEN
-				x0 := 35;
-				lineNumberFont := WMGraphics.GetFont("Oberon", 8, {});
-				lineNumberFont10 := WMGraphics.GetFont("Oberon", 8, {WMGraphics.FontBold});
+				x0 := 55;
+				lineNumberFont := WMGraphics.GetFont(font.name, font.size, {});
+				lineNumberFont10 := WMGraphics.GetFont(font.name, font.size, {WMGraphics.FontBold});
 			ELSE
 				x0 := 0;
 				lineNumberFont := NIL;
