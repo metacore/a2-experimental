@@ -4,19 +4,31 @@
 
 MODULE IP; (** AUTHOR "pjm, mvt"; PURPOSE "IP and ARP protocols"; *)
 
-IMPORT SYSTEM, WSock32, Network, Strings, KernelLog;
+IMPORT SYSTEM, WSock32, Network, Strings, Kernel, KernelLog;
 
 CONST
 	(** Error codes *)
 	Ok* = 0;
+	
+	(** TCP connection states *)
+	NumStates* = 12;  Closed* = 0;  Listen* = 1;  SynSent* = 2;
+	SynReceived* = 3;  Established* = 4;  CloseWait* = 5;  FinWait1* = 6;
+	Closing* = 7;  LastAck* = 8;  FinWait2* = 9;  TimeWait* = 10;
+	Unused* = 11;   (* no real state, only used in this implementation *)
+	
+	Trace=TRUE;
 
 	(** IP address constants *)
 	NilAdrIPv4 = 0;
+	
+	NilPort* = 0;
 
 	(* Comparators for Adr.usedProtocols *)
 	IPv4* = 4;
 	IPv6* = 6;
 	NilAdrIdent = -1;	(* usedProtocol of NilAdrs *)
+
+
 
 
 TYPE
@@ -32,16 +44,24 @@ TYPE
 							data can be used to store additional informations. I.e. in IPv6 the
 							prefix length is stored in the data field *)
 
+	Name* = ARRAY 128 OF CHAR; (** Name type for interface name *)
+
 	(** IP interface. See note at the end of the module. *)
 	Interface* = OBJECT
 	VAR
 		(** IP addresses of this interface *)
 		localAdr-: Adr;
-
+		next*:Interface;
 	END Interface;
+	
 
 VAR
+	pool*: Kernel.FinalizedCollection;   (* pool of all IP.Socket *)
+	
+	(* Interfaces *)
 	default-: Interface;
+	interfaces*: Interface; (* list of all installed interfaces *)
+
 
 	(* IP *)
 	NilAdr*: Adr; (* To check if an IP address is NIL use IsNilAdr instead *)
@@ -381,53 +401,57 @@ BEGIN
 END AdrToArray;
 
 (** Return the interface on which packets with "dst" address should be sent. Return NIL if no interface matches. *)
-PROCEDURE InterfaceByDstIP*(dst: Adr): Interface;
+PROCEDURE InterfaceByDstIP*(dst: Adr): Interface;(*! NYI*)
 BEGIN
 	RETURN default
 END InterfaceByDstIP;
 
+		(* Find MULTIPLE IP address of the specified host. *)
+PROCEDURE InitInterfaces( hostname: ARRAY OF CHAR; VAR res: LONGINT );
+	VAR hostent: WSock32.PHostent; str: ARRAY 64 OF CHAR;
+		adr, adr2: Adr;
+		int0, int:Interface; i:LONGINT;
+	BEGIN
+		hostent := WSock32.gethostbyname(hostname);
+		IF hostent = NIL THEN
+			WSock32.DispError()
+		ELSE
+			WHILE hostent.hLength>0 DO
+				adr.usedProtocol := IPv4;
+				adr.ipv4Adr := hostent.hName;
+				SYSTEM.GET(hostent.hAddrList+i*4, adr.ipv4Adr);
+				IF adr.ipv4Adr # 0 THEN 
+					SYSTEM.GET(adr.ipv4Adr, adr.ipv4Adr); 
+					NEW(int); int.localAdr:=adr;
+					IF int0=NIL THEN 
+						int0:=int; interfaces:=int0; default:=int0;
+					ELSE 
+						int0.next:=int; int0:=int; 
+					END;
+					INC(i); 
+					KernelLog.String("added IP interface "); AdrToStr(adr, str);  KernelLog.String(str); KernelLog.Ln;
+				END;
+				DEC(hostent.hLength);
+			END;
+		END;
+		IF adr.ipv4Adr # 0 THEN res := Ok ELSE res := -1 END;
+END InitInterfaces;
+
 PROCEDURE Init;
-	VAR name: ARRAY 256 OF CHAR; res: LONGINT; hint: WSock32.addrinfo; ai: WSock32.Paddrinfo;
+	VAR name: ARRAY 256 OF CHAR; res: LONGINT; 
 BEGIN
-	KernelLog.String("IP.Init. Hostname ");
+	KernelLog.String("IP.Init: Hostname ");
 	res := WSock32.gethostname(name, 256);
 	IF res = 0 THEN
-		KernelLog.String("="); KernelLog.String(name)
+		KernelLog.String(name);KernelLog.Ln;
 	ELSE
 		KernelLog.String("failed "); KernelLog.Int(res, 0);KernelLog.Ln;
 		RETURN
 	END;
-	KernelLog.String(", IP ");
-	hint.aiFlags := {};
-	hint.aiFamily := WSock32.AFINet;
-	hint.aiSocktype := WSock32.SockStream;
-	hint.aiProtocol := WSock32.IPProtoTCP;
-	hint.aiCanonname := 0;
-	hint.aiAddr := NIL;
-	hint.aiNext := NIL;
+	
 	NilAdr.usedProtocol := IPv4;
-	(*ALEX 2005.11.25 for win2k*)
-	IF WSock32.getaddrinfo # NIL THEN
-		res := WSock32.getaddrinfo(name, NIL, hint, ai);
-		IF (res = 0) & (ai # NIL) THEN
-			KernelLog.String("=");
-			IF (ai.aiFamily = WSock32.AFINet) & (ai.aiAddrlen = SIZEOF(WSock32.sockaddrIn)) & (ai.aiAddr.sinFamily = WSock32.AFINet) THEN
-				NEW(default);
-				default.localAdr.usedProtocol := IPv4;
-				default.localAdr.ipv4Adr :=  ai.aiAddr.sinAddr; (* WSock32.ntohl(ai.aiAddr.sinAddr);*)
-				AdrToStr(default.localAdr, name); KernelLog.String(name)
-			ELSE
-				KernelLog.String(" failed.")
-			END;
-
-			WSock32.freeaddrinfo(ai)
-
-		ELSE
-			KernelLog.String("failed: "); KernelLog.Int(res, 0)
-		END;
-		KernelLog.Ln()
-	ELSE KernelLog.String("failed because getaddrinfo was not found!"); KernelLog.Ln
-	END
+	
+	InitInterfaces(name, res);
 END Init;
 
 (* Swap internal representation of an IP address from big to little endian or vice versa. *)
@@ -442,5 +466,9 @@ CODE {SYSTEM.i386}
 END SwapEndian;
 
 BEGIN
-	default := NIL; Init()
+	default := NIL; 
+	Init;
 END IP.
+
+
+SystemTools.FreeDownTo IP ~
