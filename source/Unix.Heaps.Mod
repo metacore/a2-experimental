@@ -442,7 +442,7 @@ VAR
 	
 	
 	PROCEDURE ShowFreeLists( CONST msg: ARRAY OF CHAR );
-	VAR i, n, m: LONGINT;  b: FreeBlock;  bad: BOOLEAN;
+	VAR i, n: LONGINT; m: SIZE;  b: FreeBlock;  bad: BOOLEAN;
 	BEGIN
 		Trace.Ln;
 		Trace.String( "==== FreeLists " ); Trace.String( msg ); Trace.Ln;

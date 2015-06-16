@@ -6,7 +6,7 @@ IMPORT S := SYSTEM, Trace, Unix, Glue;
 CONST
 	DefaultConfig = "Color 0  StackSize 128";
 	
-	Version = "Aos (rev.5650)";
+	Version = "Aos (rev.6242)";
 
 	DefaultObjectFileExtension* = ".Obj";
 	
@@ -111,6 +111,8 @@ VAR
 	
 	logfile: LONGINT;
 	traceHeap: BOOLEAN;
+	
+	timer0	: HUGEINT;
 
 (** -- Processor identification -- *)
 
@@ -775,6 +777,12 @@ VAR
 	END InitConfig;
 	
 	
+	PROCEDURE UpdateTicks*;
+	BEGIN
+		ticks := SHORT( (GetTimer() - timer0) DIV (mhz * 1000) );
+	END UpdateTicks;
+	
+	
 	PROCEDURE InitThreads;
 	VAR res: BOOLEAN; 
 	BEGIN
@@ -875,6 +883,7 @@ VAR
 		saveSP := Empty;	(* to be replaced in module Objects *)
 		
 		COPY( Unix.Version, version );  Append( version, Version );
+		timer0 := GetTimer( );  ticks := 0;
 		InitThreads;
 		InitLocks;
 

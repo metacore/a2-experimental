@@ -474,7 +474,7 @@ TYPE
 	
 	
 	(* Return stack bottom of process. For compatibility WinAos/UnixAos/NativeAos  *)
-	PROCEDURE GetStackBottom*(p: Process): LONGINT;
+	PROCEDURE GetStackBottom*(p: Process): ADDRESS;
 	BEGIN
 		RETURN p.stackBottom
 	END GetStackBottom;
