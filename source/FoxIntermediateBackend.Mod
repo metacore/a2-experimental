@@ -5122,6 +5122,8 @@ TYPE
 							Address(res.op);String("H");
 						ELSIF (expression.type.resolved IS SyntaxTree.ProcedureType) THEN
 							Address(res.op);String("H");
+						ELSIF expression.type.resolved IS SyntaxTree.NilType THEN
+							String("NIL");
 						ELSE HALT(200);
 						END;
 					END;
