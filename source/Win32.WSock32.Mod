@@ -1,13 +1,12 @@
-(* Copyright (c) 1994 - 2000 Emil J. Zeller *)
-
-MODULE WSock32; (** non-portable / source: Win32.WSock32.Mod *)	(* ejz  *)
+MODULE WSock32; (* AUTHOR "ejz, additions Alex Popescu"; PURPOSE " Win32 WSock32 APIs used by Oberon"; *)	
+	
 	IMPORT SYSTEM, Kernel32, Modules, User32,KernelLog;
 
-(** This module defines all the Win32 WSock32 APIs used by Oberon. *)
-
 	CONST
-		WSADescriptionLen* = 256; WSASysStatusLen* = 128;
+		MAXGETHOSTSTRUCT* = 1024;
+		
 		AFINet* = 2; PFINet* = AFINet;
+		
 		SockStream* = 1;
 		IPProtoIP* = 0;
 		IPProtoICMP* = 1;
@@ -16,27 +15,30 @@ MODULE WSock32; (** non-portable / source: Win32.WSock32.Mod *)	(* ejz  *)
 		IPProtoUDP* = 17;
 		IPProtoRAW* = 255;
 		InvalidSocket* = -1;
-		SOMaxConn* = 07FFFFFFFH;
+		
+		SocketError*= -1;	SockDGram* = 2; SockRaw* = 3;
+		
+		FDRead* = 01H; FDWrite* = 02H; FDAccept *= 08H; FDConnect* = 010H; FDClose* = 020H;
+		
+		WSADescriptionLen* = 256; WSASysStatusLen* = 128;
+		
 		WSABaseErr = 10000;
 		WSAEInProgress* = WSABaseErr+36; WSAEConnAborted* = WSABaseErr+53;
 		WSAEConnReset* = WSABaseErr+54; WSAEShutdown* = WSABaseErr+58;
-
-
-		SocketError*= -1;
-		SockDGram* = 2; SockRaw* = 3;
-
-		MAXGETHOSTSTRUCT* = 1024;
-		FDRead* = 01H; FDWrite* = 02H; FDAccept *= 08H; FDConnect* = 010H; FDClose* = 020H;
 		WSAEInval* = WSABaseErr+22; WSAEWouldBlock* = WSABaseErr+35;
 		WSAENoBufs* = WSABaseErr+55;
 		WSAEConnRefused*= WSABaseErr+61;
+		
 		FIONRead* = 4004667FH;
-		SOLSocket* = 0FFFFH; SOSndTimeo* = 01005H; SORcvTimeo* = 01006H;
-		MsgPeek* = 2;
-
+		
+		SOLSocket* = 0FFFFH; 
+		SOMaxConn* = 07FFFFFFFH;
+		SOSndTimeo* = 01005H; SORcvTimeo* = 01006H;
+		SIORcvAll* = LONGINT(98000001H);
+		
 		SDReceive*=0; SDSend*=1; SDboth* = 2; (* graceful shutdown modes *)
 		
-		SIORcvAll* = LONGINT(98000001H);
+		MsgPeek* = 2;
 		
 	TYPE
 		TimeVal* = POINTER TO TimeValDesc;
@@ -79,12 +81,6 @@ MODULE WSock32; (** non-portable / source: Win32.WSock32.Mod *)	(* ejz  *)
 			fdcount*: LONGINT;
 			socket*: ARRAY 64 OF LONGINT;
 		END;
-(*
-typedef struct fd_set {
-  u_int fd_count;
-  SOCKET fd_array[FD_SETSIZE];
-} fd_set;
-*)
 
 		(** The Windows Sockets WSAPROTOCOL_INFO structure is used to store or retrieve complete information for
 			a given protocol. *)
@@ -92,20 +88,15 @@ typedef struct fd_set {
 			data: ARRAY 372 OF SYSTEM.BYTE
 		END;
 		
-		PArray = POINTER TO ARRAY 2014 OF CHAR;
-
-
 		(** The Windows Sockets hostent structure is used by functions to store information about a given host,
 			such as host name, IP address, and so forth. *)
 		LPHostent* = ADDRESS;
 		PHostent*= POINTER TO Hostent;
 		Hostent* = RECORD
-			hName*:ADDRESS; (*POINTER TO ARRAY 256 OF CHAR*); (* pointer to array of char *)
-			hAliases*: (*POINTER TO ARRAY OF POINTER TO ARRAY OF CHAR*) (* pointer to array of pointer to array of char *)
-			ADDRESS;
+			hName*:ADDRESS; (* pointer to array of char *)
+			hAliases*: ADDRESS; (* pointer to array of pointer to array of char *)
 			hAddrtype*, hLength*: INTEGER;
-			hAddrList*: (*POINTER TO ARRAY 10 OF POINTER TO ARRAY 1024 OF CHAR;*) (*PsockaddrIn*)(*Paddrinfo*)(* pointer to array of pointer of address (with len hLength) *)
-			ADDRESS;
+			hAddrList*: ADDRESS;(* pointer to array of pointer of address (with len hLength) *)
 		END;
 
 		Error = OBJECT
@@ -120,7 +111,7 @@ typedef struct fd_set {
 		wsock32: Kernel32.HMODULE;
 		wship6: Kernel32.HMODULE; (*ALEX POPESCU 2005.11.25*)
 		wsaStarted: BOOLEAN;
-	errors: Error;
+		errors: Error;
 
 		(** The Windows Sockets WSACleanup function terminates use of the Ws2_32.dll. *)
 		WSACleanup-: PROCEDURE {WINAPI} (): LONGINT;
@@ -148,19 +139,6 @@ typedef struct fd_set {
 
 		WSAIoctl-: PROCEDURE {WINAPI} (s: Socket; ioControlCode:LONGINT; VAR in: LONGINT; inSize:LONGINT;
 				VAR outBuffer:ARRAY OF CHAR; outBufLen: LONGINT; VAR lenReturned:LONGINT;  Overlapped: LONGINT; completionRoutine: LONGINT): LONGINT;
-
-(*int WSAIoctl(
-  _In_  SOCKET                             s,
-  _In_  DWORD                              dwIoControlCode,
-  _In_  LPVOID                             lpvInBuffer,
-  _In_  DWORD                              cbInBuffer,
-  _Out_ LPVOID                             lpvOutBuffer,
-  _In_  DWORD                              cbOutBuffer,
-  _Out_ LPDWORD                            lpcbBytesReturned,
-  _In_  LPWSAOVERLAPPED                    lpOverlapped,
-  _In_  LPWSAOVERLAPPED_COMPLETION_ROUTINE lpCompletionRoutine
-);
-*)
 
 		(** The Windows Sockets accept function permits an incoming connection attempt on a socket. *)
 		accept-: PROCEDURE {WINAPI} (s: Socket; VAR addr: ARRAY   OF SYSTEM.BYTE; VAR addrlen: LONGINT): Socket;
@@ -240,7 +218,6 @@ typedef struct fd_set {
 		IF wsock32 # Kernel32.NULL THEN
 			Kernel32.FreeLibrary(wsock32); wsock32 := Kernel32.NULL
 		END;
-		(*ALEX POPESCU 2005.11.25*)
 		IF wship6 # Kernel32.NULL THEN
 			Kernel32.FreeLibrary(wship6); wship6 := Kernel32.NULL
 		END
@@ -256,7 +233,7 @@ typedef struct fd_set {
 			wsock32 := Kernel32.LoadLibrary(str)
 		END;
 		str := "wship6.dll";
-		wship6 := Kernel32.LoadLibrary(str);(*ALEX POPESCU 2005.11.25*)
+		wship6 := Kernel32.LoadLibrary(str);
 		Kernel32.GetProcAddress(wsock32, "WSACleanup", SYSTEM.VAL(ADDRESS, WSACleanup));
 		Kernel32.GetProcAddress(wsock32, "WSAAsyncGetHostByAddr", SYSTEM.VAL(ADDRESS, WSAAsyncGetHostByAddr));
 		Kernel32.GetProcAddress(wsock32, "WSAAsyncGetHostByName", SYSTEM.VAL(ADDRESS, WSAAsyncGetHostByName));
@@ -290,7 +267,6 @@ typedef struct fd_set {
 		Kernel32.GetProcAddress(wsock32, "socket", SYSTEM.VAL(ADDRESS, socket));
 		Kernel32.GetProcAddress(wsock32, "shutdown", SYSTEM.VAL(ADDRESS, shutdown));
 
-		(*ALEX POPESCU 2005.11.25*)
 	    IF freeaddrinfo = NIL THEN
 	    	KernelLog.String("Trying to locate getaddrinfo, freeaddrinfo"); KernelLog.Ln;
 	    	str := "wship6.dll";
@@ -302,7 +278,6 @@ typedef struct fd_set {
 				KernelLog.String("Failed locating getaddrinfo, freeaddrinfo! You must install IPv6!"); KernelLog.Ln;
 			END
 		END;
-
 
 		Modules.InstallTermHandler(TermMod)
 	END Init;
