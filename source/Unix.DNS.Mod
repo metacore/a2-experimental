@@ -12,27 +12,26 @@ CONST
 	
 
 TYPE
-	Address = ADDRESS;
 	Name* = ARRAY 128 OF CHAR;   (* domain or host name type *)
 	
 	
 	Hostent = POINTER TO RECORD
-			name		: Address;
-			aliases		: Address;
+			name		: ADDRESS;
+			aliases	: ADDRESS;
 			addrtype	: LONGINT;
 			length		: LONGINT;
-			addrlist		: Address
+			addrlist	: ADDRESS
 		END;
 
 VAR
 	(** Local domain name *)
 	domain*: Name;
 	
-	nlib: Address;
+	nlib: ADDRESS;
 
-	gethostbyaddr		: PROCEDURE {C} ( adr: Address; len, typ: LONGINT ): Hostent;
-	gethostbyname		: PROCEDURE {C} ( name: Address ): Hostent;
-	gethostname		: PROCEDURE {C} ( name: Address; len: LONGINT ): LONGINT;
+	gethostbyaddr	: PROCEDURE {C} ( adr: ADDRESS; len, typ: LONGINT ): Hostent;
+	gethostbyname	: PROCEDURE {C} ( name: ADDRESS ): Hostent;
+	gethostname		: PROCEDURE {C} ( name: ADDRESS; len: LONGINT ): LONGINT;
 
 	(* Statistic variables *)
 	NDNSReceived-, NDNSSent-, NDNSMismatchID-, NDNSError-: LONGINT;
@@ -49,7 +48,7 @@ VAR
 	PROCEDURE HostByName*( CONST hostname: ARRAY OF CHAR;  VAR addr: IP.Adr;  VAR res: LONGINT );
 	VAR 
 		hostent: Hostent;  
-		firstaddrPtr: Address;
+		firstaddrPtr: ADDRESS;
 	BEGIN {EXCLUSIVE}
 		hostent := gethostbyname( ADDRESSOF( hostname ) );
 		IF hostent # NIL THEN		
@@ -72,7 +71,7 @@ VAR
 	PROCEDURE HostByNumber*( addr: IP.Adr;  VAR hostname: ARRAY OF CHAR;  VAR res: LONGINT );
 	VAR 
 		hostent: Hostent;
-		namePtr: Address;
+		namePtr: ADDRESS;
 		ch: CHAR; i: INTEGER;
 	BEGIN {EXCLUSIVE}
 		IF IP.IsNilAdr( addr ) THEN
