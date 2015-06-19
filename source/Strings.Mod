@@ -513,6 +513,13 @@ BEGIN
 	END
 END UpperCase;
 
+(* ASCII printable characters *)
+PROCEDURE IsPrintable*(ch:CHAR):BOOLEAN;
+BEGIN
+	RETURN (ch>=20X) & (ch<=7EX)
+END IsPrintable;
+
+
 (** conversion functions *)
 
 (** converts a boolean value to a string *)
