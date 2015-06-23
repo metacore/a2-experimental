@@ -288,11 +288,11 @@ VAR
 			IF RequestService( ssh, "ssh-userauth" ) THEN
 				authorized := RequestAuthorizeNone( ssh, user );
 				IF ~authorized THEN
-					Out.String( "trying public key authorization" ); Out.Ln;
+					Out.String( "trying public key authentication" ); Out.Ln;
 					authorized := AuthorizeKey( ssh, user );
 				END;
 				IF ~authorized THEN
-					Out.String( "trying password authorization" ); Out.Ln;
+					Out.String( "trying password authentication" ); Out.Ln;
 					authorized := AuthorizePasswd( ssh, host, user )
 				END;
 				IF ~authorized THEN

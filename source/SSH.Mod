@@ -865,7 +865,7 @@ TYPE
 	END StopForwarding;
 
 BEGIN
-	Out.String( "A2 SSH, version 1.6" );  Out.Ln;
+	Out.String( "A2 SSH, version 1.7" );  Out.Ln;
 	hexd := "0123456789ABCDEF";
 	forwarderList := NIL;
 END SSH.

@@ -11,7 +11,7 @@ IMPORT TCP, IP, DNS, Out := KernelLog,
 	U := CryptoUtils, G := SSHGlobals, SSHKeys;
 
 CONST
-	ClientVersion = "SSH-2.0-A2 SSH-1.6";  SSHport = 22;
+	ClientVersion = "SSH-2.0-A2 SSH-1.7";  SSHport = 22;
 	KEXAlgorythms		= "diffie-hellman-group14-sha1,diffie-hellman-group1-sha1,diffie-hellman-group-exchange-sha1";
 	SHKAlgorythms		= "ssh-rsa,ssh-dss";
 	(* Ciphers list			=  built from contents of  SSHConfiguration.Text *)
