@@ -12,9 +12,9 @@ CONST
 	ChannelRequest = 62X;  ChannelSuccess = 63X;  ChannelFailure = 64X;
 
 	WinSize = 8*1024;
-	MaxPacketSize = 2048;   (* max packet size *)
+	MaxPacketSize = 4*1024;   (* max packet size *)
 
-	CR = 0DX;  NL = 0AX;
+	CR = 0DX;  NL = 0AX;  HT = 09X;
 
 	ChanClosed* = T.Closed;  ChanOpen* = T.Connected;   (* channel states *)
 
@@ -42,7 +42,7 @@ TYPE
 				len := 16;
 				f.clientConn.Receive( buf, 0, len, 1, len, res );
 				IF len > 0 THEN
-					p := f.chan.NewPacket( len + 32 );
+					p := f.chan.NewDataPacket( len + 32 );
 					p.AppArray( buf, 0, len );
 					f.chan.SendPacket( p )
 				ELSE
@@ -252,18 +252,26 @@ TYPE
 				END Receive;
 
 
-				PROCEDURE NewPacket( size: LONGINT ): T.Packet;
+				PROCEDURE NewDataPacket( size: LONGINT ): T.Packet;
 				VAR p: T.Packet;
 				BEGIN
 					NEW( p, Data, size );  p.AppInteger( rchan );
 					RETURN p
-				END NewPacket;
+				END NewDataPacket;
 
-
+				PROCEDURE Outchar( c: CHAR );
+				BEGIN
+					IF (c >= ' ') & (c <= '~') THEN  Out.Char( c )  ELSE  Out.Hex( ORD(c), -2 )  END;
+				END Outchar;
+				
 				PROCEDURE SendPacket*( p: T.Packet );
 				VAR buf: ARRAY 4096 OF CHAR;
 					len, dsize: LONGINT;  t: CHAR;
 				BEGIN
+					IF ~interactive & conn.PacketAvailable() THEN
+						t := ReceivePacket( buf, len );
+					(*	ShowPacket( buf, len )	*)
+					END;
 					IF state = ChanOpen THEN
 						IF p.buf[0] = Data THEN  dsize := p.len - 9
 						ELSIF p.buf[0] = ExtData THEN  dsize := p.len - 13
@@ -285,7 +293,7 @@ TYPE
 				PROCEDURE SendBuffer*( CONST buf: ARRAY OF CHAR;  len: LONGINT );
 				VAR p: T.Packet;
 				BEGIN
-					p := NewPacket( len + 32 );
+					p := NewDataPacket( len + 32 );
 					p.AppArray( buf, 0, len );
 					SendPacket( p );
 				END SendBuffer;
@@ -293,14 +301,14 @@ TYPE
 				PROCEDURE SendChar*( ch: CHAR  );
 				VAR p: T.Packet;
 				BEGIN
-					p := NewPacket( 128 );  p.AppInteger( 1 );  p.AppChar( ch );
+					p := NewDataPacket( 128 );  p.AppInteger( 1 );  p.AppChar( ch );
 					SendPacket( p );
 				END SendChar;
 
 				PROCEDURE ReceivePacket*( VAR buf: ARRAY OF CHAR;  VAR len: LONGINT ): CHAR;
 				VAR i, l, add, chan: LONGINT;  pt: CHAR;
 					p: T.Packet;  done: BOOLEAN;
-					chanx, pos, resp: LONGINT;  req: ARRAY 64 OF CHAR;
+					pos: LONGINT;  req: ARRAY 64 OF CHAR;  wantreply: BOOLEAN;
 				BEGIN
 					IF state = ChanClosed THEN  RETURN 0X  END;
 					done := FALSE;
@@ -313,9 +321,9 @@ TYPE
 						| RequestSuccess, RequestFailure, OpenConfirm, OpenFailure:
 								done := TRUE
 						| ChannelSuccess, ChannelFailure:
-								 done := TRUE
+								done := TRUE
 						| ChannelEOF:
-								 done := TRUE
+								done := TRUE
 						| ChannelClose:
 								IF interactive THEN  conn.Disconnect( 11, "bye bye" )  END;
 								pt := 0X;  len := 0;
@@ -329,12 +337,13 @@ TYPE
 									NEW( p, WindAdjust, 128 );
 									p.AppInteger( rchan );  p.AppInteger( add );
 									conn.SendPacket( p );
-								END;
+								END;	
 								done := TRUE
 						| ExtData:  (* stderr *)
 								l := U.GetInt( buf, 9 );
-								FOR i := 1 TO l  DO  Out.Char( buf[12 + i] )  END;
-								Out.Ln
+								Out.Char( "'" );
+								FOR i := 1 TO l  DO  Outchar( buf[12 + i] )  END;
+								 Out.Char( "'" ); Out.Ln
 						| GlobalRequest:
 								l := U.GetInt( buf, 1 );
 								IF buf[5 + l] # 0X THEN
@@ -346,25 +355,22 @@ TYPE
 						| ChannelOpen:
 								chan := U.GetInt( buf, 1 );
 								NEW( p, OpenFailure, 128 );
-								p.AppInteger( chan );
+								p.AppInteger( rchan );
 								p.AppInteger( 1 );   (* reason: prohibited *)
 								p.AppString( "channel open rejected by client" );
 								p.AppString( "" );   (* language tag *)
 								conn.SendPacket( p );
 								Out.String( "Channel open request rejected by client" );  Out.Ln;
 						| ChannelRequest:
-								chanx := U.GetInt( buf, 1 );
 								pos := 5;  U.GetString( buf, pos, req );  
-								resp := ORD( buf[pos] );
-								IF resp # 0 THEN
-									NEW( p, ChannelFailure, 64 );
-									Out.String( "Channel request received: " );  Out.Int( chanx, 0 );  
-									Out.Char( ' ' );  Out.String( req );  Out.Char( ' ' );  Out.Int( resp, 0 ); 
-									Out.Ln;
-									conn.SendPacket( p )	
-								END
+								wantreply := buf[pos] # 0X;
+								IF wantreply THEN
+									NEW( p, ChannelSuccess, 64 ); p.AppInteger( rchan );
+									conn.SendPacket( p );	
+								END	
 						ELSE
-							ErrorResponse( "SSH.Channel.read", buf, len );  Close
+							ErrorResponse( "SSH.Channel.read", buf, len );  Close;
+							pt := 0X; done := TRUE
 						END;
 					UNTIL done;
 					RETURN pt
@@ -393,16 +399,6 @@ TYPE
 				END ReceiveLine;
 
 
-				PROCEDURE AwaitResponse( ): BOOLEAN;
-				VAR t: LONGINT;
-				BEGIN
-					t := Kernel.GetTicks();
-					WHILE ~conn.PacketAvailable() DO
-						IF Kernel.GetTicks() - t > 500  THEN  RETURN FALSE   END
-					END;
-					RETURN TRUE
-				END AwaitResponse;
-
 				PROCEDURE WindowChange*( width, height: LONGINT );
 				VAR p: T.Packet;
 				BEGIN
@@ -419,27 +415,30 @@ TYPE
 
 				PROCEDURE RemoteCommand*( CONST cmd: ARRAY OF CHAR );
 				VAR p: T.Packet;
+					len: LONGINT;  t: CHAR;  buf: ARRAY 1024 OF CHAR;
 				BEGIN
-					p := NewPacket( 512 );  p.AppString( cmd );  SendPacket( p );
-					SendNL;
+					p := NewDataPacket( 512 );  p.AppString( cmd );  SendPacket( p );
+					SendNL; 
+					Pause( 500 );
+					t := ReceivePacket( buf, len );	(* sync *)
 				END RemoteCommand;
 
 				PROCEDURE Sync*;
 				VAR p: T.Packet;
 				BEGIN
-					p := NewPacket( 128 );  p.AppInteger( 1 );  p.AppChar( 0X );  SendPacket( p );
+					p := NewDataPacket( 128 );  p.AppInteger( 1 );  p.AppChar( 0X );  SendPacket( p );
 				END Sync;
 
 				PROCEDURE SendNL*;
 				VAR p: T.Packet;
 				BEGIN
-					p := NewPacket( 128 );  p.AppInteger( 1 );  p.AppChar( NL );  SendPacket( p );
+					p := NewDataPacket( 128 );  p.AppInteger( 1 );  p.AppChar( NL );  SendPacket( p );
 				END SendNL;
 
 				PROCEDURE SendCR*;
 				VAR p: T.Packet;
 				BEGIN
-					p := NewPacket( 128 );  p.AppInteger( 1 );  p.AppChar( CR );  SendPacket( p );
+					p := NewDataPacket( 128 );  p.AppInteger( 1 );  p.AppChar( CR );  SendPacket( p );
 				END SendCR;
 
 				PROCEDURE SendEOF*;
@@ -448,24 +447,39 @@ TYPE
 					NEW( p, ChannelEOF, 64 );  p.AppInteger( rchan );  SendPacket( p );
 				END SendEOF;
 
-
-				PROCEDURE IgnoreInput*;  (* consume any incoming packages until connection is quiet *)
+				PROCEDURE AwaitResponse( ): BOOLEAN;
+				VAR t: LONGINT;
+				BEGIN
+					t := Kernel.GetTicks();
+					WHILE ~conn.PacketAvailable() DO
+						IF Kernel.GetTicks() - t > 500  THEN  RETURN FALSE   END
+					END;
+					RETURN TRUE
+				END AwaitResponse;
+				
+				PROCEDURE SkipInput;  (* consume any incoming data packages until connection is quiet *)
 				VAR buf: POINTER TO  ARRAY OF CHAR;
 					len: LONGINT;  t: CHAR;
 				BEGIN
 					NEW( buf, MaxPacketSize );
 					WHILE AwaitResponse( ) DO  t := ReceivePacket( buf^, len )  END
-				END IgnoreInput;
+				END SkipInput;
 
 
 				PROCEDURE Close*;
 				VAR p: T.Packet;
 					buf: ARRAY 256 OF CHAR;  len: LONGINT;  type: CHAR;
 				BEGIN
-					NEW( p, ChannelEOF, 64 );  p.AppInteger( rchan );  SendPacket( p );
-					NEW( p, ChannelClose, 64 );  p.AppInteger( rchan );  SendPacket( p );
+					Pause( 100 );
+					IF state = ChanOpen THEN
+						NEW( p, ChannelEOF, 64 );  p.AppInteger( rchan );  SendPacket( p );	
+						NEW( p, ChannelClose, 64 );  p.AppInteger( rchan );  SendPacket( p );
+					END;
 					clchan := 0;
-					WHILE state = ChanOpen DO  type := ReceivePacket( buf, len )  END;
+					WHILE (state = ChanOpen) & AwaitResponse() DO  
+						type := ReceivePacket( buf, len );
+					END; 
+					state := ChanClosed
 				END Close;
 
 				PROCEDURE & Init*( conn: T.Connection );
@@ -502,7 +516,6 @@ TYPE
 		chan.pmax := U.GetInt( buf, 13 );
 
 		chan.state := ChanOpen;
-		chan.IgnoreInput;
 
 		NEW( p, ChannelRequest, 512 );
 		p.AppInteger( chan.rchan );
@@ -534,20 +547,13 @@ TYPE
 		IF (resp # ChannelSuccess) & (resp # OpenConfirm) THEN
 			ErrorResponse( "SSH.OpenSession: shell request", buf, len );  RETURN NIL
 		END;
+		IF ~interactive THEN  chan.SkipInput; (* shell promt *)  END;
 		chan.interactive := interactive;
 		RETURN chan
 	END OpenSession;
 
 (*-------------------------- misc -------------------------------------*)
 
-	PROCEDURE PrintPacketType( CONST p: ARRAY OF CHAR );
-	VAR t: LONGINT;
-	BEGIN
-		t := ORD( p[0] );
-		Out.Char( hexd[t DIV 16] );  Out.Char( hexd[t MOD 16] );
-		Out.String( 'X(' );  Out.Int( t, 0 );  Out.String( '), channel ' );
-		Out.Int( U.GetInt( p, 1 ), 0 );  Out.Char( ' ' )
-	END PrintPacketType;
 
 	PROCEDURE Error( CONST msg: ARRAY OF CHAR );
 	BEGIN
@@ -567,29 +573,41 @@ TYPE
 		ELSIF buf[0] = RequestFailure THEN
 			Out.String( ": request failed " );
 		ELSE
-			Out.String( ": unexpected server response, packet type: " );  PrintPacketType( buf );  Out.Ln;
-			ShowResp( buf, len );
+			Out.String( ": unexpected server response" );  Out.Ln;
+			ShowPacket( buf, len );
 		END;
 		Out.Ln;
 	END ErrorResponse;
 
-
-	PROCEDURE ShowResp( CONST buf: ARRAY OF CHAR; len: LONGINT );
-	VAR i: LONGINT;  c: CHAR; 
+	
+	PROCEDURE ShowChar( c: CHAR );
 	BEGIN
-		i := 0;
-		WHILE i < len DO
-			c := buf[i]; INC( i );
-			IF (c < ' ') OR (c > '~') OR (i = 1) THEN
-				Out.Char( hexd[ORD(c) DIV 16] );
-				Out.Char( hexd[ORD(c) MOD 16] );
-			ELSE
-				Out.Char( ' ' ); Out.Char( c )
-			END;
-			IF i MOD 32 = 0 THEN  Out.Ln  ELSE  Out.Char( ' ' )  END
-		END;
-		IF len > 0 THEN  Out.Ln  END
-	END ShowResp;
+		CASE c OF
+		| CR:  Out.String("\r" )
+		| NL:  Out.String( "\n" )
+		| HT:  Out.String( "\t" )
+		| ' ' .. '~':
+			IF c = '\' THEN  Out.String( "\\" )  ELSE  Out.Char( c )  END
+		ELSE
+			Out.Char( '\' );  Out.Hex( ORD( c ), -2 )
+		END
+	END ShowChar;
+	
+	
+	PROCEDURE ShowPacket( CONST buf: ARRAY OF CHAR; len: LONGINT );
+	VAR i: LONGINT; 
+	BEGIN
+		Out.Ln;  Out.Hex( ORD( buf[0] ), -2 ); Out.Ln;
+		i := 1;
+		WHILE i < len DO  ShowChar( buf[i] );  INC( i )  END;
+		Out.Ln
+	END ShowPacket;
+	
+	PROCEDURE Pause( ms: LONGINT );
+	VAR  t: Kernel.Timer;
+	BEGIN
+		NEW( t );  t.Sleep( ms )
+	END Pause;
 
 
 (*----------------------- remote copy -------------------------------*)
@@ -648,10 +666,10 @@ TYPE
 			f := Files.Old( locFileName );
 			IF f # NIL THEN
 				chan := OpenSession( conn, FALSE );
-				chan.IgnoreInput;	(* skip prompt to stout *)
 				cmd := "stty -echo raw;  scp -q -t ";  Strings.Append( cmd, remFileName );
 				chan.RemoteCommand( cmd );
 				SendFile( f, chan, remFileName );
+				chan.Sync; 
 				chan.Close
 			ELSE  Out.String( "file not found" )
 			END;
@@ -662,23 +680,26 @@ TYPE
 	PROCEDURE SendFile( f: Files.File;  chan: Channel;  CONST name: ARRAY OF CHAR );
 	VAR
 		buf: ARRAY 10000 OF CHAR;
-		flen: LONGINT;
+		flen, sent: LONGINT;
 		lbuf: ARRAY 16 OF CHAR;
 		r: Files.Reader;  i, j: LONGINT;
 	BEGIN
-		flen := f.Length( );  buf := "C0644 ";
-		Strings.IntToStr( flen, lbuf );  Strings.Append( buf, lbuf );  Strings.Append( buf, " " );
-		Strings.Append( buf, name );  Strings.AppendChar( buf, NL );
+		flen := f.Length( );  Strings.IntToStr( flen, lbuf );  
+		buf := "C0644 "; Strings.Append( buf, lbuf );  Strings.Append( buf, " " );  Strings.Append( buf, name );  
 		chan.SendBuffer( buf, Strings.Length( buf ) );
-		Files.OpenReader( r, f, 0 );  i := 0;  j := 0;
-		WHILE i < flen DO
+		chan.SendNL;
+		Files.OpenReader( r, f, 0 );  i := 0;  j := 0;  sent := 0;
+		WHILE (i < flen) & (chan.state = ChanOpen) DO
 			r.Char( buf[j] );  INC( i );  INC( j );
 			IF (j = MaxPacketSize-64) OR (j = chan.pmax) THEN
-				chan.SendBuffer( buf, j );  j := 0;  Out.Char( '.' )
+				chan.SendBuffer( buf, j );  INC( sent, j );
+				j := 0;  Out.Char( '.' )
 			END
 		END;
-		IF j > 0 THEN  chan.SendBuffer( buf, j );  Out.Char( '.' )  END;
-		Out.Char( ' ' );  Out.Int( flen, 0 ); Out.String( " bytes sent." ); Out.Ln
+		IF j > 0 THEN  
+			chan.SendBuffer( buf, j );  INC( sent, j ); Out.Char( '.' )  
+		END;
+		Out.Char( ' ' );  Out.Int( sent, 0 ); Out.String( " bytes sent." ); Out.Ln
 	END SendFile;
 
 
@@ -714,7 +735,6 @@ TYPE
 			f := Files.Old( locFileName );
 			IF f = NIL THEN
 				chan := OpenSession( conn, FALSE );
-				chan.IgnoreInput; (* skip prompt to stdout *)
 				cmd := "stty -echo raw;  scp -q -f ";  Strings.Append( cmd, remFileName );
 				chan.RemoteCommand( cmd );
 				ReceiveFile( chan, locFileName );
@@ -736,7 +756,7 @@ TYPE
 		chan.Sync;  chan.ReceiveLine( pr, p );
 		WHILE pr[0] # 'C' DO
 			error := ORD( pr[0] ) IN {1, 2};
-			IF error THEN  ShowResp( pr, 64 );  RETURN   END;
+			IF error THEN  ShowPacket( pr, 64 );  RETURN   END;
 			chan.ReceiveLine( pr, p )
 		END;
 		flen := 0;  i := 0;
