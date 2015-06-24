@@ -3,7 +3,7 @@ Refer to the "General ETH Oberon System Source License" contract available at: h
 
 MODULE SSH;   (* g.f.	26.07.2002 *)
 
-IMPORT Kernel, Streams, Files, Strings, Out := KernelLog, Commands, IP, TCP,
+IMPORT Kernel, Streams, Files, Strings, Log := KernelLog, Commands, IP, TCP,
 	T := SSHTransport, A := SSHAuthorize, U := CryptoUtils;
 
 CONST
@@ -46,8 +46,8 @@ TYPE
 					p.AppArray( buf, 0, len );
 					f.chan.SendPacket( p )
 				ELSE
-					Out.String( "client at port " ); Out.Int( f.localPort, 0 );
-					Out.String( " closed connection" ); Out.Ln;
+					Log.String( "client at port " ); Log.Int( f.localPort, 0 );
+					Log.String( " closed connection" ); Log.Ln;
 					f.clientConn.Close;  f.clientConn := NIL;
 					EXIT
 				END
@@ -144,17 +144,17 @@ TYPE
 				
 
 			BEGIN {ACTIVE}
-				Out.String( "Start forwarding port " ); Out.Int( localPort, 0 );  Out.Ln;
+				Log.String( "Start forwarding port " ); Log.Int( localPort, 0 );  Log.Ln;
 				REPEAT
 					localConn.Accept( clientConn, res );
 					IF res # TCP.Ok THEN
-						Out.String( "accept request failed" ); Out.Ln;
+						Log.String( "accept request failed" ); Log.Ln;
 						CloseAllConnections;
 						RETURN
 					END;
-					Out.String( "client request accepted" ); Out.Ln;
+					Log.String( "client request accepted" ); Log.Ln;
 					IF ~OpenTunnel(  ) THEN
-						Out.String( "open tunnel failed" ); Out.Ln;
+						Log.String( "open tunnel failed" ); Log.Ln;
 						CloseAllConnections;
 						RETURN
 					END;
@@ -179,7 +179,7 @@ TYPE
 						END	
 					END; (* loop *)
 				UNTIL ~active;
-				Out.String( "Terminate forwarding port " ); Out.Int( localPort, 0 );  Out.Ln;
+				Log.String( "Terminate forwarding port " ); Log.Int( localPort, 0 );  Log.Ln;
 			END Forwarder;
 
 VAR
@@ -259,19 +259,12 @@ TYPE
 					RETURN p
 				END NewDataPacket;
 
-				PROCEDURE Outchar( c: CHAR );
-				BEGIN
-					IF (c >= ' ') & (c <= '~') THEN  Out.Char( c )  ELSE  Out.Hex( ORD(c), -2 )  END;
-				END Outchar;
+
 				
 				PROCEDURE SendPacket*( p: T.Packet );
 				VAR buf: ARRAY 4096 OF CHAR;
 					len, dsize: LONGINT;  t: CHAR;
 				BEGIN
-					IF ~interactive & conn.PacketAvailable() THEN
-						t := ReceivePacket( buf, len );
-					(*	ShowPacket( buf, len )	*)
-					END;
 					IF state = ChanOpen THEN
 						IF p.buf[0] = Data THEN  dsize := p.len - 9
 						ELSIF p.buf[0] = ExtData THEN  dsize := p.len - 13
@@ -306,18 +299,18 @@ TYPE
 				END SendChar;
 
 				PROCEDURE ReceivePacket*( VAR buf: ARRAY OF CHAR;  VAR len: LONGINT ): CHAR;
-				VAR i, l, add, chan: LONGINT;  pt: CHAR;
+				VAR i, l, chan, newspace: LONGINT;  ptype: CHAR;
 					p: T.Packet;  done: BOOLEAN;
 					pos: LONGINT;  req: ARRAY 64 OF CHAR;  wantreply: BOOLEAN;
 				BEGIN
 					IF state = ChanClosed THEN  RETURN 0X  END;
 					done := FALSE;
 					REPEAT
-						pt := conn.ReceivePacket( buf, len );
-						CASE pt OF
+						ptype := conn.ReceivePacket( buf, len );
+						CASE ptype OF
 						| WindAdjust:
-								add := U.GetInt( buf, 5 );
-								INC( wsize, add );
+								newspace := U.GetInt( buf, 5 );
+								INC( wsize, newspace );
 						| RequestSuccess, RequestFailure, OpenConfirm, OpenFailure:
 								done := TRUE
 						| ChannelSuccess, ChannelFailure:
@@ -326,31 +319,29 @@ TYPE
 								done := TRUE
 						| ChannelClose:
 								IF interactive THEN  conn.Disconnect( 11, "bye bye" )  END;
-								pt := 0X;  len := 0;
+								ptype := 0X;  len := 0;
 								state := ChanClosed;
 								done := TRUE
 						| Data:
 								l := U.GetInt( buf, 5 );
 								DEC( clwsize, l );
 								IF clwsize < 1000 THEN
-									add := WinSize - clwsize;  INC( clwsize, add );
+									newspace := WinSize - clwsize;  INC( clwsize, newspace );
 									NEW( p, WindAdjust, 128 );
-									p.AppInteger( rchan );  p.AppInteger( add );
+									p.AppInteger( rchan );  p.AppInteger( newspace );
 									conn.SendPacket( p );
 								END;	
 								done := TRUE
 						| ExtData:  (* stderr *)
 								l := U.GetInt( buf, 9 );
-								Out.Char( "'" );
-								FOR i := 1 TO l  DO  Outchar( buf[12 + i] )  END;
-								 Out.Char( "'" ); Out.Ln
+								FOR i := 1 TO l  DO  ShowChar( buf[12 + i] )  END;
 						| GlobalRequest:
 								l := U.GetInt( buf, 1 );
 								IF buf[5 + l] # 0X THEN
 									(* this client does not accept any global request *)
 									NEW( p, RequestFailure, 64 );
 									conn.SendPacket( p );
-									Out.String( "Global request rejected by client" );  Out.Ln
+									Log.String( "Global request rejected by client" );  Log.Ln
 								END
 						| ChannelOpen:
 								chan := U.GetInt( buf, 1 );
@@ -360,7 +351,7 @@ TYPE
 								p.AppString( "channel open rejected by client" );
 								p.AppString( "" );   (* language tag *)
 								conn.SendPacket( p );
-								Out.String( "Channel open request rejected by client" );  Out.Ln;
+								Log.String( "Channel open request rejected by client" );  Log.Ln;
 						| ChannelRequest:
 								pos := 5;  U.GetString( buf, pos, req );  
 								wantreply := buf[pos] # 0X;
@@ -370,10 +361,10 @@ TYPE
 								END	
 						ELSE
 							ErrorResponse( "SSH.Channel.read", buf, len );  Close;
-							pt := 0X; done := TRUE
+							ptype := 0X; done := TRUE
 						END;
 					UNTIL done;
-					RETURN pt
+					RETURN ptype
 				END ReceivePacket;
 
 
@@ -391,7 +382,7 @@ TYPE
 							(* stderr *)
 							e := 12 + U.GetInt( buf, 9 );  c2 := buf[13];  i := 14;
 							WHILE i <= e DO
-								IF c2 = NL THEN  Out.Ln  ELSE  Out.Char( c2 )  END;
+								IF c2 = NL THEN  Log.Ln  ELSE  Log.Char( c2 )  END;
 								c2 := buf[i];  INC( i )
 							END;
 						END
@@ -415,12 +406,9 @@ TYPE
 
 				PROCEDURE RemoteCommand*( CONST cmd: ARRAY OF CHAR );
 				VAR p: T.Packet;
-					len: LONGINT;  t: CHAR;  buf: ARRAY 1024 OF CHAR;
 				BEGIN
 					p := NewDataPacket( 512 );  p.AppString( cmd );  SendPacket( p );
 					SendNL; 
-					Pause( 500 );
-					t := ReceivePacket( buf, len );	(* sync *)
 				END RemoteCommand;
 
 				PROCEDURE Sync*;
@@ -447,38 +435,29 @@ TYPE
 					NEW( p, ChannelEOF, 64 );  p.AppInteger( rchan );  SendPacket( p );
 				END SendEOF;
 
-				PROCEDURE AwaitResponse( ): BOOLEAN;
-				VAR t: LONGINT;
-				BEGIN
-					t := Kernel.GetTicks();
-					WHILE ~conn.PacketAvailable() DO
-						IF Kernel.GetTicks() - t > 500  THEN  RETURN FALSE   END
-					END;
-					RETURN TRUE
-				END AwaitResponse;
 				
-				PROCEDURE SkipInput;  (* consume any incoming data packages until connection is quiet *)
+				PROCEDURE SkipInput;  (* consume any incoming packets until connection is quiet *)
 				VAR buf: POINTER TO  ARRAY OF CHAR;
 					len: LONGINT;  t: CHAR;
 				BEGIN
 					NEW( buf, MaxPacketSize );
-					WHILE AwaitResponse( ) DO  t := ReceivePacket( buf^, len )  END
+					REPEAT
+						WHILE conn.PacketAvailable( )  DO  t := ReceivePacket( buf^, len )  END;
+						Pause( 200 )
+					UNTIL ~conn.PacketAvailable( )
 				END SkipInput;
 
 
 				PROCEDURE Close*;
 				VAR p: T.Packet;
-					buf: ARRAY 256 OF CHAR;  len: LONGINT;  type: CHAR;
 				BEGIN
 					Pause( 100 );
 					IF state = ChanOpen THEN
 						NEW( p, ChannelEOF, 64 );  p.AppInteger( rchan );  SendPacket( p );	
 						NEW( p, ChannelClose, 64 );  p.AppInteger( rchan );  SendPacket( p );
+						SkipInput
 					END;
 					clchan := 0;
-					WHILE (state = ChanOpen) & AwaitResponse() DO  
-						type := ReceivePacket( buf, len );
-					END; 
 					state := ChanClosed
 				END Close;
 
@@ -496,7 +475,7 @@ TYPE
 	PROCEDURE OpenSession*( conn: T.Connection;  interactive: BOOLEAN ): Channel;
 	VAR len: LONGINT;
 		buf: ARRAY 3000 OF CHAR;
-		p: T.Packet;  chan: Channel;  resp: CHAR;
+		p: T.Packet;  chan: Channel;  ptype: CHAR;
 	BEGIN
 		NEW( chan, conn );
 
@@ -543,11 +522,11 @@ TYPE
 		p.AppChar( 1X );   (* want reply *)
 		chan.SendPacket( p );
 
-		resp := chan.ReceivePacket( buf, len );
-		IF (resp # ChannelSuccess) & (resp # OpenConfirm) THEN
+		ptype := chan.ReceivePacket( buf, len );
+		IF (ptype # ChannelSuccess) & (ptype # OpenConfirm) THEN
 			ErrorResponse( "SSH.OpenSession: shell request", buf, len );  RETURN NIL
 		END;
-		IF ~interactive THEN  chan.SkipInput; (* shell promt *)  END;
+		IF ~interactive THEN  chan.SkipInput (* shell promt *)  END;
 		chan.interactive := interactive;
 		RETURN chan
 	END OpenSession;
@@ -557,39 +536,39 @@ TYPE
 
 	PROCEDURE Error( CONST msg: ARRAY OF CHAR );
 	BEGIN
-		Out.Ln;
-		Out.String( "### Error: " ); Out.String( msg );  Out.Ln
+		Log.Ln;
+		Log.String( "### Error: " ); Log.String( msg );  Log.Ln
 	END Error;
 
 	PROCEDURE ErrorResponse( CONST msg, buf: ARRAY OF CHAR; len: LONGINT );
 	VAR errmsg: ARRAY 1024 OF CHAR;
 		p: LONGINT;
 	BEGIN
-		Out.Ln;  Out.String( msg );
+		Log.Ln;  Log.String( msg );
 		IF buf[0] = OpenFailure THEN
-			Out.String( ": error code = " );  Out.Int( U.GetInt( buf, 5 ), 1 );
+			Log.String( ": error code = " );  Log.Int( U.GetInt( buf, 5 ), 1 );
 			p := 9;  U.GetString( buf, p, errmsg );
-			Out.Char( ' ' );  Out.String( errmsg );
+			Log.Char( ' ' );  Log.String( errmsg );
 		ELSIF buf[0] = RequestFailure THEN
-			Out.String( ": request failed " );
+			Log.String( ": request failed " );
 		ELSE
-			Out.String( ": unexpected server response" );  Out.Ln;
+			Log.String( ": unexpected server response" );  Log.Ln;
 			ShowPacket( buf, len );
 		END;
-		Out.Ln;
+		Log.Ln;
 	END ErrorResponse;
 
 	
 	PROCEDURE ShowChar( c: CHAR );
 	BEGIN
 		CASE c OF
-		| CR:  Out.String("\r" )
-		| NL:  Out.String( "\n" )
-		| HT:  Out.String( "\t" )
+		| CR:  Log.String("\r" )
+		| NL:  Log.String( "\n" )
+		| HT:  Log.String( "\t" )
 		| ' ' .. '~':
-			IF c = '\' THEN  Out.String( "\\" )  ELSE  Out.Char( c )  END
+			IF c = '\' THEN  Log.String( "\\" )  ELSE  Log.Char( c )  END
 		ELSE
-			Out.Char( '\' );  Out.Hex( ORD( c ), -2 )
+			Log.Char( '\' );  Log.Hex( ORD( c ), -2 )
 		END
 	END ShowChar;
 	
@@ -597,10 +576,10 @@ TYPE
 	PROCEDURE ShowPacket( CONST buf: ARRAY OF CHAR; len: LONGINT );
 	VAR i: LONGINT; 
 	BEGIN
-		Out.Ln;  Out.Hex( ORD( buf[0] ), -2 ); Out.Ln;
+		Log.Ln;  Log.Hex( ORD( buf[0] ), -2 ); Log.Ln;
 		i := 1;
 		WHILE i < len DO  ShowChar( buf[i] );  INC( i )  END;
-		Out.Ln
+		Log.Ln
 	END ShowPacket;
 	
 	PROCEDURE Pause( ms: LONGINT );
@@ -628,9 +607,9 @@ TYPE
 			COPY( strings[1]^, remHost );
 			conn := A.OpenConnection( remHost, user );
 			IF conn # NIL THEN
-				Out.String( "SSH connection to '" );  Out.String( remHost );  Out.String( "' established" );  Out.Ln
+				Log.String( "SSH connection to '" );  Log.String( remHost );  Log.String( "' established" );  Log.Ln
 			END
-		ELSE  Out.String( usage );
+		ELSE  Log.String( usage );
 		END;
 		RETURN conn
 	END Connect;
@@ -647,6 +626,7 @@ TYPE
 		strings: Strings.StringArray;
 		chan: Channel;
 		conn: A.Connection;
+		t: CHAR;  len: LONGINT; buf: ARRAY 1024 OF CHAR;
 	BEGIN
 		in := context.arg;
 		conn := Connect( in, host );
@@ -659,19 +639,22 @@ TYPE
 			| 2: COPY( strings[0]^, locFileName );
 				COPY( strings[1]^, remFileName )
 			ELSE
-				Out.String( usage );  Out.Ln;  RETURN
+				Log.String( usage );  Log.Ln;  RETURN
 			END;
-			Out.String( locFileName );  Out.String( "  -->  " );
-			Out.String( host );  Out.Char( ':' );  Out.String( remFileName ); Out.String( "    " );
+			Log.String( locFileName );  Log.String( "  -->  " );
+			Log.String( host );  Log.Char( ':' );  Log.String( remFileName ); Log.String( "    " );
 			f := Files.Old( locFileName );
 			IF f # NIL THEN
 				chan := OpenSession( conn, FALSE );
 				cmd := "stty -echo raw;  scp -q -t ";  Strings.Append( cmd, remFileName );
 				chan.RemoteCommand( cmd );
+				Pause( 500 );
+				t := chan.ReceivePacket( buf, len );	(* sync *)	
+				
 				SendFile( f, chan, remFileName );
 				chan.Sync; 
 				chan.Close
-			ELSE  Out.String( "file not found" )
+			ELSE  Log.String( "file not found" )
 			END;
 		END;
 		conn.Disconnect( 11, "Good bye" )
@@ -693,13 +676,13 @@ TYPE
 			r.Char( buf[j] );  INC( i );  INC( j );
 			IF (j = MaxPacketSize-64) OR (j = chan.pmax) THEN
 				chan.SendBuffer( buf, j );  INC( sent, j );
-				j := 0;  Out.Char( '.' )
+				j := 0;  Log.Char( '.' )
 			END
 		END;
 		IF j > 0 THEN  
-			chan.SendBuffer( buf, j );  INC( sent, j ); Out.Char( '.' )  
+			chan.SendBuffer( buf, j );  INC( sent, j ); Log.Char( '.' )  
 		END;
-		Out.Char( ' ' );  Out.Int( sent, 0 ); Out.String( " bytes sent." ); Out.Ln
+		Log.Char( ' ' );  Log.Int( sent, 0 ); Log.String( " bytes sent." ); Log.Ln
 	END SendFile;
 
 
@@ -728,10 +711,10 @@ TYPE
 			| 2: COPY( strings[0]^, remFileName );
 				COPY( strings[1]^, locFileName )
 			ELSE
-				Out.String( usage );  Out.Ln;  RETURN
+				Log.String( usage );  Log.Ln;  RETURN
 			END;
-			Out.String( host );  Out.Char( ':' );  Out.String( remFileName );  Out.String( "  -->  " );
-			Out.String( locFileName );  Out.String( "    " );
+			Log.String( host );  Log.Char( ':' );  Log.String( remFileName );  Log.String( "  -->  " );
+			Log.String( locFileName );  Log.String( "    " );
 			f := Files.Old( locFileName );
 			IF f = NIL THEN
 				chan := OpenSession( conn, FALSE );
@@ -740,7 +723,7 @@ TYPE
 				ReceiveFile( chan, locFileName );
 				chan.Close
 			ELSE
-				Out.String( "not done: file " ); Out.String( locFileName ); Out.String( " exists" ); Out.Ln
+				Log.String( "not done: file " ); Log.String( locFileName ); Log.String( " exists" ); Log.Ln
 			END;
 		END;
 		conn.Disconnect( 11, "Good bye" )
@@ -766,7 +749,7 @@ TYPE
 		chan.Sync;
 		f := Files.New( name );  Files.OpenWriter( w, f, 0 );  received := 0;
 		REPEAT
-			type := chan.ReceivePacket( buf, plen );  Out.Char( '.' );
+			type := chan.ReceivePacket( buf, plen );  Log.Char( '.' );
 			IF type = Data THEN
 				dlen := U.GetInt( buf, 5 );
 				IF received + dlen > flen THEN  dlen := flen - received  END;
@@ -775,7 +758,7 @@ TYPE
 		UNTIL received >= flen;
 		w.Update;
 		Files.Register( f );
-		Out.Char( ' ' );  Out.Int( received, 0 );  Out.String( " bytes received." ); Out.Ln
+		Log.Char( ' ' );  Log.Int( received, 0 );  Log.String( " bytes received." ); Log.Ln
 	END ReceiveFile;
 
 
@@ -800,18 +783,18 @@ TYPE
 		arg := context.arg;
 		arg.SkipWhitespace; arg.String( token );
 		strings := Strings.Split( token, '@' );
-		IF LEN( strings^ ) # 2 THEN  Out.String( usage ); Out.Ln;  RETURN  END;
+		IF LEN( strings^ ) # 2 THEN  Log.String( usage ); Log.Ln;  RETURN  END;
 		COPY( strings[0]^, user );
 		COPY( strings[1]^, remhost );
 		arg.SkipWhitespace; arg.String( token );
 		strings := Strings.Split( token, ':' );
-		IF  LEN( strings^ ) # 2 THEN  Out.String( usage ); Out.Ln;  RETURN  END;
+		IF  LEN( strings^ ) # 2 THEN  Log.String( usage ); Log.Ln;  RETURN  END;
 		Strings.StrToInt( strings[0]^, locPort );
 		Strings.StrToInt( strings[1]^, destPort );
  		f := forwarderList;
 		WHILE f # NIL DO
 			IF f.localPort = locPort THEN
-				Out.String( "Error: port in use: " );  Out.Int( f.localPort, 1 );  Out.Ln;  RETURN
+				Log.String( "Error: port in use: " );  Log.Int( f.localPort, 1 );  Log.Ln;  RETURN
 			END;
 			f := f.next
 		END;
@@ -823,11 +806,11 @@ TYPE
 				NEW( f, locConn, locPort, remConn, destPort );
 				f.next := forwarderList;  forwarderList := f;
 			ELSE
-				Out.String( "connecting remote host hailed" ); Out.Ln;
+				Log.String( "connecting remote host hailed" ); Log.Ln;
 				locConn.Close;
 			END
 		ELSE
-			Out.String( "Error: cannot open port " );  Out.Int( locPort, 1 );  Out.Ln;
+			Log.String( "Error: cannot open port " );  Log.Int( locPort, 1 );  Log.Ln;
 		END
 	END StartForwarding;
 
@@ -865,7 +848,7 @@ TYPE
 	END StopForwarding;
 
 BEGIN
-	Out.String( "A2 SSH, version 1.7" );  Out.Ln;
+	Log.String( "A2 SSH, version 1.7" );  Log.Ln;
 	hexd := "0123456789ABCDEF";
 	forwarderList := NIL;
 END SSH.
