@@ -870,17 +870,17 @@ VAR
 	adr: Adr;
 
 BEGIN
-	CASE ORD(buffer.data[0]) DIV 16 OF
+	CASE ORD(buffer.data[buffer.l3ofs]) DIV 16 OF
 		IPv4:
 			adr.usedProtocol := IPv4;
-			adr.ipv4Adr := SYSTEM.VAL(LONGINT, buffer.data[12]);
+			adr.ipv4Adr := SYSTEM.VAL(LONGINT, buffer.data[buffer.l3ofs+12]);
 			SetIPv6AdrNil(adr);
 			RETURN adr;
 
 		|IPv6:
 			adr.usedProtocol := IPv6;
 			FOR i := 0 TO 15 DO
-				adr.ipv6Adr[i] := buffer.data[8 + i];
+				adr.ipv6Adr[i] := buffer.data[buffer.l3ofs+8 + i];
 			END;
 			adr.ipv4Adr := NilAdrIPv4;
 
@@ -901,17 +901,17 @@ VAR
 	i: LONGINT;
 
 BEGIN
-	CASE ORD(buffer.data[0]) DIV 16 OF
+	CASE ORD(buffer.data[buffer.l3ofs]) DIV 16 OF
 		IPv4:
 			adr.usedProtocol := IPv4;
-			adr.ipv4Adr := SYSTEM.VAL(LONGINT, buffer.data[16]);
+			adr.ipv4Adr := SYSTEM.VAL(LONGINT, buffer.data[buffer.l3ofs+16]);
 			SetIPv6AdrNil(adr);
 			RETURN adr;
 
 		|IPv6:
 			adr.usedProtocol := IPv6;
 			FOR i := 0 TO 15 DO
-				adr.ipv6Adr[i] := buffer.data[24 + i];
+				adr.ipv6Adr[i] := buffer.data[buffer.l3ofs+24 + i];
 			END;
 			adr.ipv4Adr := NilAdrIPv4;
 
