@@ -295,14 +295,20 @@ BEGIN
 END Inflate;
 
 PROCEDURE GZip*(context:Commands.Context);
-VAR filename: Files.FileName; from,to: Files.File;
+VAR filename: Files.FileName; from,to: Files.File; compression, strategy: LONGINT;
 BEGIN
 	IF context.arg.GetString(filename) THEN
 		from:=Files.Old(filename); 
 		Strings.Append(filename, ".gz");
 		to:=Files.New(filename);
 		IF (from#NIL)&(to#NIL) THEN
-			Deflate(from,to,DefaultCompression, DefaultStrategy, FullFlush(*?*));
+			IF ~context.arg.GetInteger(compression,FALSE) THEN 
+				compression:=DefaultCompression;
+				strategy:=DefaultStrategy;
+			ELSIF ~context.arg.GetInteger(strategy,FALSE) THEN
+				strategy:=DefaultStrategy;
+			END;
+			Deflate(from,to,compression, strategy, FullFlush(*?*));
 			Files.Register(to);
 			context.out.String("gzipped "); context.out.String(filename);context.out.Ln; context.out.Update;	
 		ELSE
