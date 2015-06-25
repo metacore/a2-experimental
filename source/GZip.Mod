@@ -308,7 +308,7 @@ BEGIN
 			ELSIF ~context.arg.GetInteger(strategy,FALSE) THEN
 				strategy:=DefaultStrategy;
 			END;
-			Deflate(from,to,compression, strategy, FullFlush(*?*));
+			Deflate(from,to,SHORTINT(compression), SHORTINT(strategy), FullFlush(*?*));
 			Files.Register(to);
 			context.out.String("gzipped "); context.out.String(filename);context.out.Ln; context.out.Update;	
 		ELSE
