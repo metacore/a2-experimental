@@ -5,7 +5,7 @@ MODULE Machine;
 IMPORT SYSTEM, Trace, Kernel32;
 
 CONST
-	Version = "WinAos Revision 4634 (12.03.2012)";
+	Version = "WinAos Revision 5614 (04.07.2014)";
 
 	DefaultConfigFile = "aos.ini";
 	UserConfigFile = "myaos.ini";
