@@ -20,7 +20,7 @@ VAR
 	CONST	
 		AddrSize = SIZEOF( ADDRESS );
 	VAR 
-		f: Files.File;  w: Files.Writer;  startOffset, top, adr, i: LONGINT;
+		f: Files.File;  w: Files.Writer;  startOffset, i: LONGINT;  top, adr: ADDRESS;
 	BEGIN
 		startOffset := Heaps.BlockSize - AddrSize;
 		top := Heaps.beginFree;
@@ -43,7 +43,9 @@ VAR
 
 		(* output relocate information *)
 		w.RawNum( Heaps.numRelocations );  i := 0;
-		WHILE i < Heaps.numRelocations DO  w.RawNum( Heaps.relocAddr[i] - Heaps.heapAdr );  INC( i )  END;
+		WHILE i < Heaps.numRelocations DO  
+			w.RawNum( LONGINT( Heaps.relocAddr[i] - Heaps.heapAdr ) );  INC( i )  
+		END;
 		
 		w.Update;  Files.Register( f );
 
@@ -66,11 +68,10 @@ VAR
 	BEGIN
 		out := context.out;  error := context.error;
 		
-		IF ~context.arg.GetString( fileName ) OR 
-		    ~context.arg.GetString( token ) OR 
-		    (token # ":=") THEN
-			error.String( "wrong parameter(s), terminating" ); error.Ln;  
-			error.Update;  RETURN
+		IF	~context.arg.GetString( fileName ) OR 
+			~context.arg.GetString( token ) OR (token # ":=") THEN
+				error.String( "wrong parameter(s), terminating" ); error.Ln;  error.Update;  
+				RETURN
 		END;
 		
 		fullPath := Loader.BuildDirectory; Strings.Append( fullPath, "/" ); Strings.Append( fullPath, fileName );
