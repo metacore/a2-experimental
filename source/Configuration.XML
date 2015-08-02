@@ -83,7 +83,7 @@ To update: Configuration.Init ~
 				<Setting name="Bitstream Vera Sans" value="Vera.ttf"/>
 				<Setting name="Bitstream Vera Sans Bold" value="VeraBd.ttf"/>
 				<Setting name="Bitstream Vera Sans Bold Oblique" value="VeraBI.ttf"/>
-				<Setting name="Bitstream Vera Sans Italic" value="VeraI.ttf"/>
+				<Setting name="Bitstream Vera Sans Oblique" value="VeraI.ttf"/>
 				<Setting name="Bitstream Vera Sans Mono" value="VeraMo.ttf"/>
 				<Setting name="Bitstream Vera Sans Mono Bold" value="VeraMoBd.ttf"/>
 				<Setting name="Bitstream Vera Sans Mono Bold Oblique" value="VeraMoBI.ttf"/>

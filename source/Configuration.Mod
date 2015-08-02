@@ -123,12 +123,13 @@ BEGIN
 END GetBoolean;
 
 PROCEDURE GetColor*(CONST key : ARRAY OF CHAR; VAR value : LONGINT; VAR res : LONGINT);
-VAR string : ARRAY 16 OF CHAR;
+VAR string : ARRAY 16 OF CHAR; tempres : LONGINT;
 BEGIN
 	Get(key, string, res);
 	IF (res = Ok) THEN
 		Strings.TrimWS(string);
-		Strings.HexStrToInt(string, value, res); (*! Hack: Strings.Ok and Configuration.Ok may be different! *)
+		Strings.HexStrToInt(string, value, tempres);
+		IF tempres # Strings.Ok THEN res := Error; END;
 	END;
 END GetColor;
 
