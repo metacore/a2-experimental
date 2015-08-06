@@ -175,7 +175,7 @@ TYPE
 	VAR
 		id- : LONGINT;
 
-		timestamp- : LONGINT; (* incremented at each call of procedure Draw *)
+		timestamp* : LONGINT; (* incremented at each call of procedure Draw *)
 
 		(** Ranges in global coordinates *)
 		bounds* : Rectangle; (** current range *)
