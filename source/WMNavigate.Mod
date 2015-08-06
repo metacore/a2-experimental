@@ -1415,7 +1415,7 @@ PROCEDURE WindowShot(window: WMWindowManager.Window);
 VAR str,fn: Files.FileName;  res: LONGINT; startTime: Dates.DateTime;
 BEGIN
 	GenerateName(window.GetTitle(),fn);
-	IF fn="" THEN COPY("ScreenShot",fn) END;
+	IF fn="" THEN COPY("WindowShot",fn) END;
 	startTime := Dates.Now();
 	Strings.FormatDateTime("_yyyymmdd__hhnnss",startTime,str);
 	Strings.Concat(fn,str,fn);
