@@ -1413,6 +1413,7 @@ END GenerateName;
 
 PROCEDURE WindowShot(window: WMWindowManager.Window);
 VAR str,fn: Files.FileName;  res: LONGINT; startTime: Dates.DateTime;
+	img:WMGraphics.Image;
 BEGIN
 	GenerateName(window.GetTitle(),fn);
 	IF fn="" THEN COPY("WindowShot",fn) END;
@@ -1424,6 +1425,13 @@ BEGIN
 		WMGraphics.StoreImage(window(WMWindowManager.DoubleBufferWindow).backImg, fn, res);
 	ELSIF window IS WMWindowManager.BufferWindow THEN
 		WMGraphics.StoreImage(window(WMWindowManager.BufferWindow).img, fn, res);
+	ELSE 
+		NEW(img); Raster.Create(img, window.GetWidth(), window.GetHeight(),Raster.BGRA8888);
+		window.Draw(WMGraphics.GenCanvas(img), window.GetWidth(), window.GetHeight(), 0);
+		WMGraphics.StoreImage(img, fn, res);
+	END;
+	IF res=0 THEN
+		KernelLog.String("store window shot as "); KernelLog.String(fn); KernelLog.Ln;
 	END;
 END WindowShot;
 
