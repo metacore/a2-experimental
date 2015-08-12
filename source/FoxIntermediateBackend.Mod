@@ -6958,7 +6958,11 @@ TYPE
 			IF ~TryConstantDeclaration() THEN
 				IF constantDeclaration = NIL THEN constantDeclaration:=BuildConstant(module.module,x,constId) END;
 				Global.GetSymbolSegmentedName(constantDeclaration,name);
-				irv := NewSection(module.allSections,Sections.ConstSection,name,constantDeclaration,commentPrintout # NIL);
+				IF ~newObjectFile OR (constantDeclaration.scope = NIL) OR (constantDeclaration.scope.ownerModule = module.module) THEN
+					irv := NewSection(module.allSections,Sections.ConstSection,name,constantDeclaration,commentPrintout # NIL);
+				ELSE
+					irv := NewSection(module.importedSections, Sections.ConstSection, name,constantDeclaration,commentPrintout # NIL);
+				END;
 				RecursiveData(x.array);
 				InitOperand(result,ModeReference);
 				IntermediateCode.InitAddress(result.op, addressType, irv.name, GetFingerprint(irv.symbol), 0);
@@ -6971,6 +6975,7 @@ TYPE
 			IF constantDeclaration = NIL THEN
 				RETURN FALSE
 			ELSE
+				(* Is a constant in this module: did we generate it already? *)
 				constant := module.allSections.FindBySymbol(constantDeclaration); (*TODO*)
 				IF constant # NIL THEN
 					InitOperand(result,ModeReference);
@@ -7014,11 +7019,11 @@ TYPE
 			IF ~TryConstantDeclaration() THEN
 				IF constantDeclaration = NIL THEN constantDeclaration:=BuildConstant(module.module,x,constId) END;
 				Global.GetSymbolSegmentedName(constantDeclaration,name);
-					IF ~newObjectFile OR (constantDeclaration.scope = NIL) OR (constantDeclaration.scope.ownerModule = module.module) THEN
-				irv := NewSection(module.allSections, Sections.ConstSection, name,constantDeclaration,commentPrintout # NIL);
-					ELSE
-						irv := NewSection(module.importedSections, Sections.ConstSection, name,constantDeclaration,commentPrintout # NIL);
-					END;
+				IF ~newObjectFile OR (constantDeclaration.scope = NIL) OR (constantDeclaration.scope.ownerModule = module.module) THEN
+					irv := NewSection(module.allSections, Sections.ConstSection, name,constantDeclaration,commentPrintout # NIL);
+				ELSE
+					irv := NewSection(module.importedSections, Sections.ConstSection, name,constantDeclaration,commentPrintout # NIL);
+				END;
 				FOR i := 0 TO x.length-1 DO
 					IntermediateCode.InitImmediate(op,IntermediateCode.GetType(system,system.characterType),ORD(x.value[i]));
 					irv.Emit(Data(position,op));
