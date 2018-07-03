@@ -290,7 +290,8 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	WIN32 { Windows.I386.Machine.Mod }
 	WIN64 { Windows.AMD64.Machine.Mod }
 	COOP { Mutexes.Mod }
-	BIOS32C, WIN32C { Coop.I386.Machine.Mod }
+	BIOS32C, WIN32C { Coop.Machine.Mod }
+	LINUX64C { Coop.Machine.Mod }
 	RPIC, ZYNQC { Coop.ARM.Machine.Mod }
 
 	UNIX32 { Unix.I386.Machine.Mod }
