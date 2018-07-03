@@ -266,7 +266,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	COOP { Counters.Mod }
 	BIOS32C { I386.APIC.Mod APIC.Processors.Mod BIOS.ACPI.Mod ACPI.Timer.Mod }
 	WIN32C { Coop.Windows.I386.Kernel32.Mod Windows.Processors.Mod Windows.Timer.Mod }
-	LINUX64C { Linux.AMD64.Glue.Mod Linux.AMD64.Unix.Mod Unix.Processors.Mod Unix.Timer.Mod }
+	LINUX64C { Linux.Glue.Mod Linux.AMD64.Unix.Mod Unix.Processors.Mod Unix.Timer.Mod }
 	RPIC { RPI.Processors.Mod RPI.Timer.Mod }
 	ZYNQC { Zynq.Processors.Mod Zynq.Timer.Mod }
 	COOP { Queues.Mod BaseTypes.Mod Activities.Mod ExclusiveBlocks.Mod Interrupts.Mod Runtime.Mod }
@@ -274,6 +274,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	RPIC { HeapManager.Mod RPI.Environment.Mod }
 	ZYNQC { HeapManager.Mod Zynq.Environment.Mod }
 	WIN32C { Windows.Environment.Mod }
+	LINUX64C { Unix.Environment.Mod }
 
 	LINUX32 { Linux.Glue.Mod Linux.I386.Unix.Mod }
 	LINUX64 { Linux.Glue.Mod Linux.AMD64.Unix.Mod }
