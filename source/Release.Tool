@@ -295,8 +295,7 @@ PACKAGE Kernel ARCHIVE "Kernel.zip" SOURCE "KernelSrc.zip" DESCRIPTION "A2 Kerne
 	LINUX64C { Coop.Machine.Mod }
 	RPIC, ZYNQC { Coop.ARM.Machine.Mod }
 
-	UNIX32 { Unix.I386.Machine.Mod }
-	UNIX64 { Unix.AMD64.Machine.Mod }
+	UNIX { Unix.Machine.Mod }
 
 	NATIVE, WIN, UNIX { Heaps.Mod }
 	COOP { Coop.Heaps.Mod }
