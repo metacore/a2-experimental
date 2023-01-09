@@ -1,0 +1,3 @@
+Release.Build --build --path=bin/ Win32 ~
+Linker.Link --path=bin/ --fileFormat=PE32CUI --fileName=oberon.exe --extension=GofW --displacement=401000H Builtins Trace Kernel32 Heaps Modules Objects Kernel Strings KernelLog Streams Commands Files WinFS Clock Dates Reals Diagnostics BitSets StringPool ObjectFile GenericLinker Reflection Traps Loader Shell StdIOShell System ~
+

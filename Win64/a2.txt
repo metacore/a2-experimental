@@ -1,12 +1,4 @@
-Heaps.SetMetaData ~
-Traps.Install ~
-Files.AddSearchPath bin~
-Files.AddSearchPath ../source~
-Files.AddSearchPath ../~
-Files.SetWorkPath work~
-Configuration.Init~
-Machine.SetTraceFile~
-FSTools.Mount WORK RelativeFileSystem Work~
+System.DoFile oberon.ini ~
 Display.Install ~
 WindowManager.Install ~
 Clipboard.Install ~

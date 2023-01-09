@@ -1,0 +1,7 @@
+System.DoFile oberon.ini ~
+Display.Install ~
+WindowManager.Install ~
+Autostart.Run~
+Clipboard.Install~
+KbdMouse.DisableMouseEmulation ~
+DisplayRefresher.Install~
