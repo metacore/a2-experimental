@@ -67,6 +67,7 @@ TYPE
 		VAR mode : Raster.Mode; pix : Raster.Pixel;
 		BEGIN
 			Init^;
+			isScalable := TRUE;
 			nofGlyphRanges := 0;
 			empty := WMRectangles.MakeRect(0, 0, 0, 0);		(* save the proc call *)
 			NEW(placeholderimg); Raster.Create(placeholderimg, 16, 16, Raster.A1);

@@ -4241,7 +4241,11 @@ BEGIN
 	IF (userData # NIL) & (userData IS DZ) THEN
 		EnsureAttribute(attr);
 		dz := userData(DZ);
+		IF (attr.fontInfo.fontcache # NIL) & (attr.fontInfo.fontcache IS WMGraphics.Font) & attr.fontInfo.fontcache(WMGraphics.Font).isScalable THEN
+			attr.fontInfo.size := MAX(6, attr.fontInfo.size + (-dz.value) * attr.fontInfo.size DIV 4)
+		ELSE
 			GetNewSize(attr.fontInfo.name,-dz.value, attr.fontInfo.size, attr.fontInfo.size);
+		END;
 		attr.fontInfo.fontcache := NIL;
 	END;
 END ChangeAttribute;

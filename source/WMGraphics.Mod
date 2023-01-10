@@ -66,8 +66,15 @@ TYPE
 		name* : ARRAY 256 OF CHAR;
 		size* : SIZE;
 		style* : SET;
+		isScalable* : BOOLEAN;
 
 		PROCEDURE &Init*;
+		BEGIN
+			ascent := 0; descent := 0;
+			name := "";
+			size := 0;
+			style := {};
+			isScalable := FALSE;
 		END Init;
 
 		PROCEDURE GetHeight*():SIZE;
