@@ -2,7 +2,7 @@
 
 MODULE Streams;   (** AUTHOR "pjm/be"; PURPOSE "I/O buffering and formatted writing and reading"; *)
 
-IMPORT SYSTEM, RC := RealConversions;
+IMPORT SYSTEM, RC := RealConversions(*, UTF8Strings*);
 
 CONST
 	Ok* = 0;   (** zero result code means no error occurred *)
@@ -28,7 +28,7 @@ TYPE
 	END;
 
 	Char16* = UNSIGNED16;
-	Char32* = SIGNED32;
+	Char32* = SIGNED32; (*! UTF8Strings.Char32*)
 	Position* = SIGNED64; (* position in the stream *)
 
 	(** Any stream output procedure or method. *)

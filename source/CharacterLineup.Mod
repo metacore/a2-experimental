@@ -21,7 +21,7 @@ TYPE
 		characters, filterComponents : WMGrids.GenericGrid;
 		toggleFilter : WMStandardComponents.Button;
 
-		curChar :SIGNED32;
+		curChar :UTF8Strings.Char32;
 		fontinfo : WMCCGFonts.GenericFont;
 		bigFont : WMGraphics.Font;
 		charInfo : UnihanParser.Character;

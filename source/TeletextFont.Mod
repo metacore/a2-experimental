@@ -8,7 +8,7 @@ IMPORT
 	Files;
 
 TYPE
-	Char32 = SIGNED32;
+	Char32 = Graphics.Char32;
 	Glyph = RECORD
 		img : Graphics.Image;
 		code : Char32; (* import only *)
@@ -18,7 +18,7 @@ TYPE
 	GlyphArray = POINTER TO ARRAY OF Glyph;
 
 	GlyphRange = RECORD
-		firstCode, lastCode : SIGNED32; (* inclusive *)
+		firstCode, lastCode : Char32; (* inclusive *)
 		glyphs : GlyphArray;
 	END;
 	GlyphRangeArray = POINTER TO ARRAY OF GlyphRange;
@@ -45,7 +45,7 @@ TYPE
 			ascent := 10; descent := 8;
 		END Init;
 
-		PROCEDURE GetGlyphMap*(code : SIGNED32; VAR map : Graphics.Image);
+		PROCEDURE GetGlyphMap*(code : Char32; VAR map : Graphics.Image);
 		VAR g : Glyph;
 		BEGIN
 			IF FindGlyph(code, g) THEN
@@ -55,14 +55,14 @@ TYPE
 			END
 		END GetGlyphMap;
 
-		PROCEDURE HasChar(char : SIGNED32) : BOOLEAN;
+		PROCEDURE HasChar(char : Char32) : BOOLEAN;
 		VAR dummy : SIGNED32;
 		BEGIN
 			RETURN FindGlyphRange(char, dummy)
 		END HasChar;
 
 
-		PROCEDURE GetGlyphSpacings*(code : SIGNED32; VAR glyphSpacings : Graphics.GlyphSpacings);
+		PROCEDURE GetGlyphSpacings*(code : Char32; VAR glyphSpacings : Graphics.GlyphSpacings);
 		VAR g : Glyph;
 		BEGIN
 			IF FindGlyph(code, g) THEN
@@ -75,7 +75,7 @@ TYPE
 			END
 		END GetGlyphSpacings;
 
-		PROCEDURE LoadGlyph(code : SIGNED32; VAR g : Glyph);
+		PROCEDURE LoadGlyph(code : Char32; VAR g : Glyph);
 		VAR gri : SIGNED32;
 		BEGIN
 			IF FindGlyph(code, g) & ~g.loaded THEN
@@ -113,10 +113,10 @@ TYPE
 		END FindGlyph;
 
 		PROCEDURE CountGlyphes():SIGNED32;
-		VAR i, c : SIGNED32;
+		VAR i, c := 0: SIGNED32;
 		BEGIN
 			FOR i := 0 TO nofGlyphRanges - 1 DO
-				c := c + glyphRanges[i].lastCode - glyphRanges[i].firstCode + 1;
+				c := c + SIGNED32(glyphRanges[i].lastCode - glyphRanges[i].firstCode) + 1;
 			END;
 			RETURN c
 		END CountGlyphes;
@@ -138,7 +138,7 @@ TYPE
 			curindex : SIGNED32;
 
 			PROCEDURE CountRanges(): SIGNED32;
-			VAR i : SIGNED32; c, r: SIGNED32;
+			VAR i : SIGNED32; c: Char32; r: SIGNED32;
 			BEGIN
 				c := glyphs[0].code; r := 1;
 				FOR i := 1 TO nofGlyphs - 1 DO
@@ -149,7 +149,7 @@ TYPE
 			END CountRanges;
 
 			PROCEDURE GetRangeLength(i : SIGNED32): SIGNED32;
-			VAR count, c : SIGNED32;
+			VAR count: SIGNED32; c : Char32;
 			BEGIN
 				count := 1; c := glyphs[i].code;
 				WHILE (i + count < nofGlyphs) & (glyphs[i + count].code = c + count) DO INC(count) END;
@@ -294,20 +294,20 @@ TYPE
 			Files.WriteLInt(w, nofGlyphRanges);
 			(* write ranges *)
 			FOR i := 0 TO nofGlyphRanges - 1 DO
-				Files.WriteLInt(w, glyphRanges[i].firstCode);
-				Files.WriteLInt(w, glyphRanges[i].lastCode);
+				Files.WriteLInt(w, glyphRanges[i].firstCode(SIGNED32));
+				Files.WriteLInt(w, glyphRanges[i].lastCode(SIGNED32));
 			END;
 			fixup := f.Pos(w);
 
 			(* reserve space for per character file position table *)
 			FOR i := 0 TO nofGlyphRanges - 1 DO
-				FOR j := 0 TO glyphRanges[i].lastCode - glyphRanges[i].firstCode DO
+				FOR j := 0 TO SIGNED32(glyphRanges[i].lastCode - glyphRanges[i].firstCode) DO
 					Files.WriteLInt(w, 0);
 				END
 			END;
 			c := 0;
 			FOR i := 0 TO nofGlyphRanges - 1 DO
-				FOR j := 0 TO glyphRanges[i].lastCode - glyphRanges[i].firstCode DO
+				FOR j := 0 TO SIGNED32(glyphRanges[i].lastCode - glyphRanges[i].firstCode) DO
 					INC(c);
 					pos := 0;
 					KernelLog.String("Calling Raster... ");
@@ -322,7 +322,7 @@ TYPE
 			f.Set(w, fixup);
 			c := 0;
 			FOR i := 0 TO nofGlyphRanges - 1 DO
-				FOR j := 0 TO glyphRanges[i].lastCode - glyphRanges[i].firstCode DO
+				FOR j := 0 TO SIGNED32(glyphRanges[i].lastCode - glyphRanges[i].firstCode) DO
 					INC(c);
 					IF c < 319 THEN
 						Files.WriteLInt(w, glyphRanges[i].glyphs[j].fpos)
@@ -384,13 +384,13 @@ TYPE
 			(* read ranges *)
 			NEW(glyphRanges, nofGlyphRanges);
 			FOR i := 0 TO nofGlyphRanges - 1 DO
-				Files.ReadLInt(r, glyphRanges[i].firstCode);
-				Files.ReadLInt(r, glyphRanges[i].lastCode);
-				notenoughregisters := glyphRanges[i].lastCode - glyphRanges[i].firstCode;
+				Files.ReadLInt(r, glyphRanges[i].firstCode(SIGNED32));
+				Files.ReadLInt(r, glyphRanges[i].lastCode(SIGNED32));
+				notenoughregisters := SIGNED32(glyphRanges[i].lastCode - glyphRanges[i].firstCode);
 				NEW(glyphRanges[i].glyphs, notenoughregisters + 1)
 			END;
 			FOR i := 0 TO nofGlyphRanges - 1 DO
-				FOR j := 0 TO glyphRanges[i].lastCode - glyphRanges[i].firstCode DO
+				FOR j := 0 TO SIGNED32(glyphRanges[i].lastCode - glyphRanges[i].firstCode) DO
 					Files.ReadLInt(r, glyphRanges[i].glyphs[j].fpos);
 				END
 			END;

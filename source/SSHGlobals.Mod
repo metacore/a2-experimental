@@ -183,7 +183,7 @@ VAR
 	PROCEDURE GetConfigBuffer(): Buffer;
 	VAR
 		text: Texts.Text; r: Texts.TextReader;
-		ch: SIGNED32; format: TextUtilities.Format; len, i, j, bytesPerChar: SIZE; res: INTEGER;
+		ch: Texts.Char32; format: TextUtilities.Format; len, i, j, bytesPerChar: SIZE; res: INTEGER;
 		buffer: Buffer;
 	BEGIN
 		NEW( text );

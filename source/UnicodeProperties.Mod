@@ -389,7 +389,7 @@ TYPE
 					(* the character's code has been found *)
 					ELSIF (i = 0) THEN
 						res[j-1] := CHR(0H);
-						Strings.HexStrToInt(res,thisInt, dummyVal);
+						Strings.HexStrToInt(res,thisInt(SIGNED32), dummyVal);
 
 						(* carry on if the this was not the wanted character yet *)
 						IF (thisInt < char) THEN
@@ -447,7 +447,7 @@ TYPE
 		so the scanner needs to be set to the first line of interest. *)
 		PROCEDURE FindStartPos;
 		VAR
-			thisChar : SIGNED32;
+			thisChar : Texts.Char32;
 		BEGIN
 			thisChar := 0;
 			text.AcquireRead;
@@ -487,7 +487,7 @@ TYPE
 			(* if the character was terminated by a ';' it is assumed to be valid and is converted into an integer *)
 			IF (tempChar = ORD(';')) THEN
 				sourceString[i] := CHR(0H);
-				Strings.HexStrToInt(sourceString,sourceInt,res);
+				Strings.HexStrToInt(sourceString,sourceInt(SIGNED32),res);
 			END;
 
 			RETURN sourceInt;
@@ -518,7 +518,7 @@ TYPE
 
 			(* terminate the result string and convert it into an integer *)
 			targetString[i] := CHR(0H);
-			Strings.HexStrToInt(targetString,targetInt,res);
+			Strings.HexStrToInt(targetString,targetInt(SIGNED32),res);
 
 			RETURN targetInt;
 		END GetTargetChar;

@@ -634,7 +634,7 @@ TYPE
 	END NewScanner;
 
 	PROCEDURE InitWithText*(t: Texts.Text; pos: SIGNED32): Scanner;
-		VAR buffer: Buffer; len, i, j: SIZE; ch: SIGNED32; r: Texts.TextReader;
+		VAR buffer: Buffer; len, i, j: SIZE; ch: Texts.Char32; r: Texts.TextReader;
 		bytesPerChar: SIGNED32;
 	BEGIN
 		t.AcquireRead;

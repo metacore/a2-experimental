@@ -505,9 +505,9 @@ TYPE
 
 		(* Process double height content. Stretch graphic characters to double height. Characters: Underline on the succeeding row..
 			The result will be stored in current and succeeding line *)
-		PROCEDURE DoubleHeight (VAR txt : ARRAY OF SIGNED32; pos : SIGNED32);
+		PROCEDURE DoubleHeight (VAR txt : ARRAY OF Texts.Char32; pos : SIGNED32);
 		VAR
-			c : SIGNED32;
+			c : Texts.Char32;
 		BEGIN
 			c := txt [pos];
 			IF ((c >= 57344) & (c < 57376)) OR ((c >= 57408) & (c < 57440)) THEN

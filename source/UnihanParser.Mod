@@ -13,7 +13,7 @@ TYPE
 	String = Strings.String;
 	Character* = OBJECT
 	VAR
-		radical*, tradvariant*, simpvariant*,
+		radical*, tradvariant*, simpvariant*: TextUtilities.Char32;
 		additionalstrokes*, totalstrokes*, freq*, xfreq* : SIGNED32;
 		mandarin*, pinyin*, cantonese*, korean*, definition* : String;
 	END Character;
@@ -56,13 +56,13 @@ BEGIN
 	RETURN res
 END GetHex;
 
-PROCEDURE HasCode*(code : SIGNED32) : BOOLEAN;
+PROCEDURE HasCode*(code : TextUtilities.Char32) : BOOLEAN;
 BEGIN
 	RETURN (code >= 0) & (code < MaxCode) & (codeArray[code] # NIL)
 END HasCode;
 
 (** If not existing, creates the character *)
-PROCEDURE GetCharacter*(code : SIGNED32) : Character;
+PROCEDURE GetCharacter*(code : TextUtilities.Char32) : Character;
 BEGIN
 	ASSERT( (code >= 0) & (code < MaxCode) );
 	IF (codeArray[code] = NIL) THEN NEW(codeArray[code]) END;
@@ -116,7 +116,7 @@ END ParseLine;
 
 PROCEDURE AddRadicals;
 VAR f : Files.File; r : Files.Reader;
-	code, count : SIGNED32; char : Character;
+	code: TextUtilities.Char32; count : SIGNED32; char : Character;
 BEGIN
 	f := Files.Old("Radicals.txt");
 	IF f # NIL THEN
@@ -139,7 +139,7 @@ END AddRadicals;
 
 PROCEDURE AddFrequencies;
 VAR f : Files.File; r : Files.Reader;
-	code, count, i : SIGNED32; char : Character;
+	code: TextUtilities.Char32; count, i : SIGNED32; char : Character;
 BEGIN
 	f := Files.Old("frequencies.txt");
 	IF f # NIL THEN

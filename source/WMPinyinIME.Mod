@@ -13,7 +13,7 @@ CONST
 TYPE
 	CharInfo = RECORD
 		pinyin : ARRAY 8 OF CHAR;
-		ucs : SIGNED32;
+		ucs : TextUtilities.Char32;
 		freq : SIGNED32;
 		info : String;
 	END;

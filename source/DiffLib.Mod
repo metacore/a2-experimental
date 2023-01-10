@@ -45,7 +45,7 @@ TYPE
 	PROCEDURE GetLineBuffer (reader: Texts.TextReader; VAR size: SIZE): LineBuffer;
 	VAR
 		first, current: LineBuffer;
-		ch: SIGNED32;
+		ch: Texts.Char32;
 	BEGIN
 		NEW (first);
 		current := first;
@@ -70,7 +70,7 @@ TYPE
 
 	PROCEDURE ReadLine (pos: SIZE; reader: Texts.TextReader): Strings.String;
 	VAR
-		ch: SIGNED32; i: SIZE;
+		ch: Texts.Char32; i: SIZE;
 		string: Strings.String;
 	BEGIN
 		reader.SetPosition (pos);
@@ -104,7 +104,7 @@ TYPE
 
 		PROCEDURE CompareLines (left, right: SIZE): BOOLEAN;
 		VAR
-			leftCh, rightCh: SIGNED32;
+			leftCh, rightCh: Texts.Char32;
 		BEGIN
 			leftReader.SetPosition (GetLinePos (leftBuffer, left));
 			rightReader.SetPosition (GetLinePos (rightBuffer, right));

@@ -456,7 +456,7 @@ TYPE
 		PROCEDURE GetStyle(sender, data : ANY);
 		VAR text : Texts.Text; from, to : Texts.TextPosition;
 			utilreader : Texts.TextReader; tempString : ARRAY 256 OF CHAR;
-			a, b: SIZE; ch, temp : SIGNED32;
+			a, b: SIZE; ch: Texts.Char32; temp : SIGNED32;
 		BEGIN
 			IF Texts.GetLastSelection(text, from, to) THEN
 				text.AcquireWrite;

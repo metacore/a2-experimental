@@ -21,9 +21,9 @@ CONST
 	TraceHard = FALSE;
 
 TYPE
-	UCS32String* = ARRAY OF SIGNED32;
+	Char32* = UTF8Strings.Char32;
+	UCS32String* = ARRAY OF Char32;
 	PUCS32String* = POINTER TO UCS32String;
-	Char32* = SIGNED32;
 
 	FontInfo* = OBJECT
 	VAR
@@ -532,7 +532,7 @@ TYPE
 			Changed^(op, pos, len); piece := NIL
 		END Changed;
 
-		PROCEDURE ReadCh*(VAR ucs32 : SIGNED32);
+		PROCEDURE ReadCh*(VAR ucs32 : Char32);
 		VAR res : INTEGER; tfont: FontInfo;
 			tempObj : ObjectPiece;
 		BEGIN

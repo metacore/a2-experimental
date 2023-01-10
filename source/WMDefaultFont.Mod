@@ -28,7 +28,7 @@ TYPE
 		END Init;
 
 		(* map unicode to oberon *)
-		PROCEDURE MapChars(VAR ch : SIGNED32);
+		PROCEDURE MapChars(VAR ch : Graphics.Char32);
 		BEGIN
 
 			CASE ch OF
@@ -66,13 +66,13 @@ TYPE
 
 		END MapChars;
 
-		PROCEDURE HasChar*(code : SIGNED32) : BOOLEAN;
+		PROCEDURE HasChar*(code : Graphics.Char32) : BOOLEAN;
 		BEGIN
 			MapChars(code);
 			RETURN (code >= 0) & (code < 256) & (glyphs[code].available)
 		END HasChar;
 
-		PROCEDURE GetGlyphMap*(code : SIGNED32; VAR map : Graphics.Image);
+		PROCEDURE GetGlyphMap*(code : Graphics.Char32; VAR map : Graphics.Image);
 		BEGIN
 			MapChars(code);
 			IF (code >= 0) & (code < 256) & (glyphs[code].available) & (glyphs[code].img # NIL) THEN
@@ -81,7 +81,7 @@ TYPE
 			END
 		END GetGlyphMap;
 
-		PROCEDURE GetGlyphSpacings*(code : SIGNED32; VAR glyphSpacings : Graphics.GlyphSpacings);
+		PROCEDURE GetGlyphSpacings*(code : Graphics.Char32; VAR glyphSpacings : Graphics.GlyphSpacings);
 		BEGIN
 			MapChars(code);
 			IF (code >= 0) & (code < 256) & (glyphs[code].available) THEN

@@ -9,6 +9,9 @@ IMPORT Strings;
 CONST
 	CmpLess* = -1; CmpEqual* = 0; CmpGreater* = 1;	 CmpError* = 2; (** results for Compare. *)
 
+TYPE
+	Char32* = SIGNED32; (*!Streams.Char32*)
+
 VAR
 	CodeLength-: ARRAY 256 OF CHAR;	(** UTF-8 encoding length table. *)
 	init: SIZE;
@@ -17,7 +20,7 @@ VAR
 
 (** Encode one UCS-32 value in ucs into one well-formed UTF-8 character at str[p..]. The parameter p is incremented by the number of
 	characters needed to encode the UCS-32 value. *)
-PROCEDURE EncodeChar*(ucs: SIGNED32; VAR str: ARRAY OF CHAR; VAR i: SIZE): BOOLEAN;
+PROCEDURE EncodeChar*(ucs: Char32; VAR str: ARRAY OF CHAR; VAR i: SIZE): BOOLEAN;
 VAR len, j: SIZE; byte, mask, max: SIGNED16;
 	buf: ARRAY 6 OF CHAR;
 BEGIN
@@ -52,8 +55,8 @@ END EncodeChar;
 
 (** Decode one well-formed UTF-8 character at str[i..] and return its UCS-32 value in ucs.  When successful, parameter i is incremented to the start of the next UTF-8 character.  Otherwise, parameter i points to the byte where the error was detected (this will also be the next character in the case of a minimal coding error).  Return TRUE iff decoding succeeds. *)
 
-PROCEDURE DecodeChar*(CONST str: ARRAY OF CHAR; VAR i: SIZE; VAR ucs: SIGNED32): BOOLEAN;
-VAR len: SIZE; ch, min: SIGNED32;
+PROCEDURE DecodeChar*(CONST str: ARRAY OF CHAR; VAR i: SIZE; VAR ucs: Char32): BOOLEAN;
+VAR len: SIZE; ch, min: Char32;
 BEGIN
 	IF i < LEN(str) THEN
 		ch := LONG(ORD(str[i]));
@@ -85,7 +88,7 @@ END DecodeChar;
 (** Check whether str is a 0X-terminated well-formed UTF-8 string. *)
 
 PROCEDURE Valid*(CONST str: ARRAY OF CHAR): BOOLEAN;
-VAR i: SIZE; ucs: SIGNED32;
+VAR i: SIZE; ucs: Char32;
 BEGIN
 	i := 0;
 	WHILE DecodeChar(str, i, ucs) DO
@@ -123,7 +126,7 @@ END SetSize;
 (** Return the byte offset of the UTF-8 character with index idx, counting from 0.  If idx is past the end of the string, return the offset of the terminating 0X, and if idx is negative, return 0.  This is also the definition of an UTF-8 index used by the other procedures. *)
 
 PROCEDURE OffsetOfIndex*(CONST str: ARRAY OF CHAR; idx: SIZE): SIZE;
-VAR i: SIZE; ch: SIGNED32;
+VAR i: SIZE; ch: Char32;
 BEGIN
 	i := 0;
 	LOOP	(* find position *)
@@ -140,7 +143,7 @@ END OffsetOfIndex;
 (** Return the number of UTF-8 characters in str, excluding the terminating 0X. *)
 
 PROCEDURE Length*(CONST str: ARRAY OF CHAR): SIZE;
-VAR i, len: SIZE; ch: SIGNED32;
+VAR i, len: SIZE; ch: Char32;
 BEGIN
 	i := 0; len := 0;
 	LOOP	(* count characters *)
@@ -280,7 +283,7 @@ END Replace;
 	by 'substitute' if it is # 0X. *)
 
 PROCEDURE UTF8toASCII*(CONST src: ARRAY OF CHAR; substitute: CHAR; VAR dst: ARRAY OF CHAR): SIZE;
-VAR count, i, len, pos: SIZE; ucs: SIGNED32;
+VAR count, i, len, pos: SIZE; ucs: Char32;
 BEGIN
 	len := LEN(dst); ucs := -1;
 	WHILE (ucs # 0) & DecodeChar(src, pos, ucs) & (i < len) DO
@@ -304,7 +307,7 @@ END ASCIItoUTF8;
 (** Transform a well-formed UTF-8 string into an array of UCS-32 values, ucs[idx...]. The UCS-32 representation is terminated with a 0 value.
 	The parameter idx points to the next free entry after the conversion. *)
 
-PROCEDURE UTF8toUnicode*(CONST utf8: ARRAY OF CHAR; VAR ucs: ARRAY OF SIGNED32; VAR idx: SIZE);
+PROCEDURE UTF8toUnicode*(CONST utf8: ARRAY OF CHAR; VAR ucs: ARRAY OF Char32; VAR idx: SIZE);
 VAR p, l: SIZE;
 BEGIN
 	p := 0; l := LEN(ucs)-1;
@@ -314,7 +317,7 @@ END UTF8toUnicode;
 
 (** Transform a 4-byte, 0-terminated unicode character 'ucs' into a well-formed UTF-8 representation *)
 
-PROCEDURE UnicodetoUTF8*(CONST ucs: ARRAY OF SIGNED32; VAR utf8: ARRAY OF CHAR);
+PROCEDURE UnicodetoUTF8*(CONST ucs: ARRAY OF Char32; VAR utf8: ARRAY OF CHAR);
 VAR b: BOOLEAN; i, p, l: SIZE;
 BEGIN
 	b := TRUE; i := 0; p := 0; l := LEN(ucs);
@@ -413,8 +416,8 @@ BEGIN
 	RETURN Compare(l^, r^) < 0
 END LessString;
 
-PROCEDURE CompareToUnicode*(CONST utf8 : ARRAY OF CHAR; CONST unicode : ARRAY OF SIGNED32) : INTEGER;
-VAR len, i, j: SIZE; char, ucs: SIGNED32; result: INTEGER; valid, abort : BOOLEAN;
+PROCEDURE CompareToUnicode*(CONST utf8 : ARRAY OF CHAR; CONST unicode : ARRAY OF Char32) : INTEGER;
+VAR len, i, j: SIZE; char, ucs: Char32; result: INTEGER; valid, abort : BOOLEAN;
 BEGIN
 	len := LEN(unicode);
 	i := 0; j := 0; valid := TRUE; abort := FALSE;

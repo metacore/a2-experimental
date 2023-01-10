@@ -17,7 +17,7 @@ CONST
 
 PROCEDURE ReplaceString(text : Text; search : ARRAY OF CHAR; replace : Text; sfrom, slen : SIZE);
 VAR pos, len : SIZE;
-	xs : ARRAY 128 OF SIGNED32;
+	xs : ARRAY 128 OF UTF8Strings.Char32;
 BEGIN
 	text.AcquireWrite;
 	pos := 0; UTF8Strings.UTF8toUnicode(search, xs, pos);
@@ -29,14 +29,14 @@ BEGIN
 	text.ReleaseWrite
 END ReplaceString;
 
-PROCEDURE UTFUCS(src : ARRAY OF CHAR; VAR dst : ARRAY OF SIGNED32);
+PROCEDURE UTFUCS(src : ARRAY OF CHAR; VAR dst : ARRAY OF UTF8Strings.Char32);
 VAR pos : SIZE;
 BEGIN
 	pos := 0; UTF8Strings.UTF8toUnicode(src, dst, pos)
 END UTFUCS;
 
 PROCEDURE MergeWithTemplate(template, src, date : Text; VAR dst : Text);
-VAR tb, te, cb, ce: SIZE; str : ARRAY 32 OF SIGNED32;
+VAR tb, te, cb, ce: SIZE; str : ARRAY 32 OF UTF8Strings.Char32;
 BEGIN
 	NEW(dst);
 	template.AcquireRead; src.AcquireRead; dst.AcquireWrite;

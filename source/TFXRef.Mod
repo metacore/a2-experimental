@@ -757,7 +757,7 @@ BEGIN
 END GenerateModule;
 
 PROCEDURE InitWithText(t: Texts.Text; pos: SIGNED32): Strings.String;
-	VAR buffer: Strings.String; len, i, j: SIZE; ch: SIGNED32; r: Texts.TextReader;
+	VAR buffer: Strings.String; len, i, j: SIZE; ch: Texts.Char32; r: Texts.TextReader;
 	bytesPerChar: SIGNED32;
 
 	PROCEDURE ExpandBuf(VAR oldBuf: Strings.String; newSize: SIZE);

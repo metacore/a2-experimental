@@ -377,7 +377,7 @@ TYPE
 				currentElement := nextElement;
 			ELSE
 				(* get the bucket where the element resides if available *)
-				bucket := char MOD cacheSize;
+				bucket := SIGNED32(char MOD cacheSize);
 				currentElement := internalCache[bucket];
 			END;
 
@@ -414,7 +414,7 @@ TYPE
 			NEW(newElement,char,value);
 
 			(* insert the new entry at the first position of the correct bucket *)
-			bucket := char MOD cacheSize;
+			bucket := SIGNED32(char MOD cacheSize);
 			newElement.next := internalCache[bucket];
 			internalCache[bucket] := newElement;
 		END Insert;
@@ -797,9 +797,9 @@ TYPE
 								(* get the target character *)
 								charString := charElement.GetAttributeValue(CodeAttribute);
 								IF base16 THEN
-									Strings.HexStrToInt(charString^,charCode,res);
+									Strings.HexStrToInt(charString^,charCode(SIGNED32),res);
 								ELSE
-									Strings.StrToInt(charString^,charCode);
+									Strings.StrToInt(charString^,charCode(SIGNED32));
 								END;
 
 								(* load only the context rules for the currently considered character (lazy loading) *)
@@ -952,9 +952,9 @@ TYPE
 														ELSIF tagName^ = ResultTag THEN
 															resultAttribute := rangeElement.GetAttributeValue(CodeAttribute);
 															IF base16 THEN
-																Strings.HexStrToInt(resultAttribute^,newContext.resultingChar,res);
+																Strings.HexStrToInt(resultAttribute^,newContext.resultingChar(SIGNED32),res);
 															ELSE
-																Strings.StrToInt(resultAttribute^,newContext.resultingChar);
+																Strings.StrToInt(resultAttribute^,newContext.resultingChar(SIGNED32));
 															END;
 
 															(* a Zero defines the Zero-Width Space, which is used to simulate
@@ -1236,7 +1236,7 @@ TYPE
 				END;
 
 				(* Search the range tree for a suitable analyzer *)
-				analyzer := ranges.Search(lineCache[i]);
+				analyzer := ranges.Search(SIGNED32(lineCache[i]));
 				IF analyzer # NIL THEN
 					IF RangeDebug THEN
 						KernelLog.String("==> "); KernelLog.Hex(ch,4); KernelLog.Ln;

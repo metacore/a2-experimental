@@ -9,16 +9,16 @@ CONST
 	Debug = FALSE;
 
 TYPE
-
+	Char32 = WMGraphics.Char32;
 	Glyph*  = RECORD
 		img- : WMGraphics.Image;
-		code- : SIGNED32; 										(* import only *)
+		code- : Char32; 										(* import only *)
 		dx, x, y, w, h : SIGNED32;
 	END;
 	GlyphArray* = POINTER TO ARRAY OF Glyph;
 
 	GlyphRange* = RECORD
-		firstCode-, lastCode- : SIGNED32;							 (* inclusive *)
+		firstCode-, lastCode- : Char32;							 (* inclusive *)
 		glyphs- : GlyphArray;
 		loaded- : BOOLEAN;
 	END;
@@ -77,12 +77,12 @@ TYPE
 		END Init;
 
 		(* support the oberon encoding scheme *)
-		PROCEDURE MapCode(VAR code : SIGNED32);
+		PROCEDURE MapCode(VAR code : Char32);
 		BEGIN
 			IF (code >= 126) & (code <= 155) THEN code := OpenType.CharToUnicode[code] END;
 		END MapCode;
 
-		PROCEDURE GetGlyphMap*(code : SIGNED32; VAR map : WMGraphics.Image);
+		PROCEDURE GetGlyphMap*(code : Char32; VAR map : WMGraphics.Image);
 		VAR g : Glyph; range : SIZE;
 		BEGIN
 			IF FindGlyphRange(code, range) THEN
@@ -94,13 +94,13 @@ TYPE
 			END
 		END GetGlyphMap;
 
-		PROCEDURE HasChar*(code : SIGNED32) : BOOLEAN;
+		PROCEDURE HasChar*(code : Char32) : BOOLEAN;
 		VAR dummy : SIZE;
 		BEGIN
 			RETURN FindGlyphRange(code, dummy)
 		END HasChar;
 
-		PROCEDURE GetGlyphSpacings*(code : SIGNED32; VAR glyphSpacings : WMGraphics.GlyphSpacings);
+		PROCEDURE GetGlyphSpacings*(code : Char32; VAR glyphSpacings : WMGraphics.GlyphSpacings);
 		VAR g : Glyph; range : SIZE;
 		BEGIN
 			IF FindGlyphRange(code, range) THEN
@@ -122,7 +122,7 @@ TYPE
 
 
 		PROCEDURE LoadGlyphRange(gri : SIZE);
-		VAR i: SIGNED32;
+		VAR i: Char32;
 		BEGIN
 			IF glyphRanges[gri].glyphs = NIL THEN
 				NEW(glyphRanges[gri].glyphs, glyphRanges[gri].lastCode - glyphRanges[gri].firstCode + 1);
@@ -142,7 +142,7 @@ TYPE
 				glyphRanges[gri].loaded := TRUE;
 		END LoadGlyphRange;
 
-		PROCEDURE FindGlyphRange(code : SIGNED32; VAR gri : SIZE) : BOOLEAN;
+		PROCEDURE FindGlyphRange(code : Char32; VAR gri : SIZE) : BOOLEAN;
 		VAR a, b, m : SIZE;
 		BEGIN
 			gri := 0;
@@ -159,7 +159,7 @@ TYPE
 			END
 		END FindGlyphRange;
 
-		PROCEDURE FindGlyph(code : SIGNED32; VAR glyph : Glyph) : BOOLEAN;
+		PROCEDURE FindGlyph(code : Char32; VAR glyph : Glyph) : BOOLEAN;
 		VAR gri : SIZE;
 		BEGIN
 			IF FindGlyphRange(code, gri) THEN
@@ -173,15 +173,15 @@ TYPE
 		END FindGlyph;
 
 		PROCEDURE CountGlyphes():SIGNED32;
-		VAR i, c : SIGNED32;
+		VAR i : SIGNED32; c : Char32;
 		BEGIN
 			FOR i := 0 TO nofGlyphRanges - 1 DO
 				c := c + glyphRanges[i].lastCode - glyphRanges[i].firstCode + 1;
 			END;
-			RETURN c
+			RETURN c(SIGNED32)
 		END CountGlyphes;
 
-		PROCEDURE ReadGlyph(code : SIGNED32; VAR g : Glyph);
+		PROCEDURE ReadGlyph(code : Char32; VAR g : Glyph);
 		VAR no, dw, dh, y, x: SIGNED32; mode: Raster.Mode; data: RasterData;
 		BEGIN{EXCLUSIVE}
 			Raster.InitMode(mode, Raster.srcCopy);

@@ -777,7 +777,7 @@ TYPE
 
 		PROCEDURE SelectRangeHandler(sender, data: ANY);
 		VAR
-			a, b: SIZE; ch : SIGNED32;
+			a, b: SIZE; ch : Texts.Char32;
 			r : Texts.TextReader;
 		BEGIN
 			IF currentNode = NIL THEN RETURN END;

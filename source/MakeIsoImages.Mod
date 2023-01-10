@@ -1554,7 +1554,7 @@ END SetStringWithPadding;
 
 PROCEDURE ConvertUTF8ToUCS2(VAR src, dst: ARRAY OF CHAR);
 VAR
-	ucs4: ARRAY MaxLen OF SIGNED32;
+	ucs4: ARRAY MaxLen OF UTF8Strings.Char32;
 	i, len: SIZE;
 BEGIN
 	UTF8Strings.UTF8toUnicode(src, ucs4, len);
@@ -1569,7 +1569,7 @@ END ConvertUTF8ToUCS2;
 (* converts an identifier to a zero terminated utf8 string *)
 PROCEDURE ConvertIdentToUTF8*(CONST id: ARRAY OF CHAR; len: SIZE; ucs2: BOOLEAN; VAR str: ARRAY OF CHAR);
 VAR
-	i, p: SIZE; val: SIGNED32;
+	i, p: SIZE; val: UTF8Strings.Char32;
 	b: BOOLEAN;
 BEGIN
 	ASSERT(len <= LEN(id));

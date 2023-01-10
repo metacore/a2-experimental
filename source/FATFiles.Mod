@@ -1125,7 +1125,7 @@ TYPE
 		VAR data: ARRAY 32 OF CHAR; cont: BOOLEAN;
 			type, i, k, chksumI, chksumII: SIGNED32;
 			file, f: File; dir: Directory; r: Files.Rider; entry: DirEntry;
-			attr: SET32; unicode: ARRAY 261 OF SIGNED32; longname: Filename;
+			attr: SET32; unicode: ARRAY 261 OF UTF8Strings.Char32; longname: Filename;
 		BEGIN
 			NEW(file, fs); NEW(dir, fs);
 			SetX(r, 0);
@@ -1418,7 +1418,7 @@ TYPE
 
 		PROCEDURE WriteFileHeaderX(f: File);
 		VAR data: ARRAY 32 OF CHAR; b, ro, writeLast: BOOLEAN;
-			ofs, i, k, len, numFree, s, ucs: SIGNED32; unicode: ARRAY 256 OF SIGNED16;
+			ofs, i, k, len, numFree, s: SIGNED32; ucs: UTF8Strings.Char32; unicode: ARRAY 256 OF SIGNED16;
 			r: Files.Rider; c, chksum: CHAR; p: SIZE;
 		BEGIN
 			IF (faReadOnly IN attr) THEN EXCL(attr, faReadOnly); ro := TRUE END;
@@ -1477,7 +1477,7 @@ TYPE
 					REPEAT
 						b := UTF8Strings.DecodeChar(f.long, p, ucs);
 						IF ~b OR (ucs < 0) OR (ucs > MAX(SIGNED16)) THEN HALT(ErrInvalidFilename) END;
-						unicode[i] := SHORT(ucs); INC(i)
+						unicode[i] := SIGNED16(SHORT(ucs)); INC(i)
 					UNTIL (ucs = 0);
 
 					WHILE (len > 1) DO
@@ -1794,7 +1794,7 @@ END CheckSum;
 
 (* NameLength - returns the number of directory entries needed to store a file with filename 'fn' *)
 PROCEDURE NameLength(CONST fn: Filename): SIZE;
-VAR pos, i: SIZE; ucs: SIGNED32;
+VAR pos, i: SIZE; ucs: UTF8Strings.Char32;
 BEGIN
 	IF IsShortName(fn) THEN RETURN 1
 	ELSE

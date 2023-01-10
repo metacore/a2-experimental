@@ -3141,7 +3141,7 @@ TYPE
 			currentPStyle : DTPData.ParagraphStyleObject;
 			pStyle : Texts.ParagraphStyle;
 			cStyle : Texts.CharacterStyle;
-			a, b: SIZE; ch : SIGNED32;
+			a, b: SIZE; ch : Texts.Char32;
 		BEGIN
 			IF (data # NIL ) THEN
 				currentPStyle := data(DTPData.ParagraphStyleObject);
@@ -3205,7 +3205,7 @@ TYPE
 			attr : Texts.Attributes;
 			currentCStyle : DTPData.CharacterStyleObject;
 			cStyle : Texts.CharacterStyle;
-			a, b: SIZE; ch : SIGNED32;
+			a, b: SIZE; ch : Texts.Char32;
 		BEGIN
 			IF (data # NIL ) THEN
 				currentCStyle := data(DTPData.CharacterStyleObject);

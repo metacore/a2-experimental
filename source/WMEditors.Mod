@@ -334,7 +334,7 @@ TYPE
 		(* Determine the cursor character position given coordinate x in the component coordinate system *)
 		PROCEDURE GetCursorPosition(x: SIZE) : SIGNED32;
 		VAR
-			cursorPosition, code, i : SIGNED32;
+			cursorPosition, i : SIGNED32; code : Texts.Char32;
 			found : BOOLEAN; lastDistance : FLOAT32;
 			font : WMGraphics.Font;
 			g : WMGraphics.GlyphSpacings; gx : FLOAT32;
@@ -365,7 +365,7 @@ TYPE
 
 		(* Determine the cursor's x-coordinate of the current cursor position relative to the first characer *)
 		PROCEDURE GetCursorCoordinateX() : SIGNED32;
-		VAR font : WMGraphics.Font; g : WMGraphics.GlyphSpacings; x : FLOAT32; i, code : SIGNED32;
+		VAR font : WMGraphics.Font; g : WMGraphics.GlyphSpacings; x : FLOAT32; i : SIGNED32; code : Texts.Char32;
 		BEGIN
 			font := GetFont();
 			x := 0.0;
@@ -387,14 +387,14 @@ TYPE
 		CONST CursorWidth = 2; BorderWidth = 1;
 		VAR
 			font : WMGraphics.Font; g : WMGraphics.GlyphSpacings;
-			x, y : SIZE; cursorX, selectionX0, selectionX1, tw, th: SIZE; code: SIGNED32; width, height : SIZE;
+			x, y : SIZE; cursorX, selectionX0, selectionX1, tw, th: SIZE; code: Texts.Char32; width, height : SIZE;
 			i: SIZE;
 			selectionIsValid : BOOLEAN;
 			halign: SIGNED32;
 			TextBorder: SIGNED32;
 
 			PROCEDURE StringSize(VAR w,h: SIZE);
-			VAR code: SIGNED32; i: SIZE;
+			VAR code: Texts.Char32; i: SIZE;
 			BEGIN
 				w := 0; h := 0;
 				FOR i := 0 TO curLen-1 DO

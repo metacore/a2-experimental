@@ -43,7 +43,7 @@ CONST
 	SelectionColor = 0000FF60H;
 	SelectionColorInterclick01 = SIGNED32(0FFFF0060H);
 	SelectionColorInterclick02 = SIGNED32(0FF000060H);
-	
+
 	TextViewMinimalDelay = 30; (*ms*) (*limit update messaging; helpful on slow systems.*)
 
 TYPE
@@ -2983,7 +2983,7 @@ TYPE
 
 		(* Returns TRUE if an Object is Hit, FALSE otherwise *)
 		PROCEDURE HitObject(x, y : SIZE; (* keys : SET;*)  VAR pos : SIZE; VAR obj : ANY): BOOLEAN;
-		VAR ch : SIGNED32; tx, ty : SIZE;
+		VAR ch : Char32; tx, ty : SIZE;
 		BEGIN
 			text.AcquireRead;
 			ViewToTextPos(x, y, pos);
@@ -3002,7 +3002,7 @@ TYPE
 
 		(* Returns TRUE if a Link is Hit, FALSE otherwise *)
 		PROCEDURE HitLink(x, y : SIZE;  VAR pos : SIZE; VAR link : Texts.Link): BOOLEAN;
-		VAR ch: SIGNED32; tx, ty : SIZE;
+		VAR ch: Char32; tx, ty : SIZE;
 		BEGIN
 			text.AcquireRead;
 			ViewToTextPos(x, y, pos);
@@ -3058,7 +3058,7 @@ TYPE
 
 		(* Returns the position of the label in text *)
 		PROCEDURE FindLabel*(CONST label : ARRAY OF CHAR; VAR pos : SIZE): BOOLEAN;
-		VAR ch : SIGNED32;
+		VAR ch : Char32;
 			found : BOOLEAN;
 		BEGIN
 			found := FALSE; pos := 0;
@@ -3642,11 +3642,11 @@ TYPE
 		END SetFlags;
 
 		PROCEDURE FindCommandRange*(pos: SIZE; VAR start, end, nofLastSelections : SIZE);
-		VAR ch : SIGNED32; string : ARRAY 23 OF CHAR; i : SIZE; sDoCommands, lastWasTilde : BOOLEAN;
-			escapeString: ARRAY 32 OF SIGNED32; escapePos: SIGNED32; escape: BOOLEAN;
+		VAR ch : Char32; string : ARRAY 23 OF CHAR; i : SIZE; sDoCommands, lastWasTilde : BOOLEAN;
+			escapeString: ARRAY 32 OF Char32; escapePos: SIGNED32; escape: BOOLEAN;
 
 			(* note: this simple algorithm can be emplyed if  the substring to be implicitly searched for does not contain its first character *)
-			PROCEDURE String(escape: BOOLEAN; CONST escapeString: ARRAY OF SIGNED32);
+			PROCEDURE String(escape: BOOLEAN; CONST escapeString: ARRAY OF Char32);
 			VAR done: BOOLEAN; escapePos: SIGNED32;
 			BEGIN
 				done := FALSE; escapePos := -1;
@@ -3735,7 +3735,7 @@ TYPE
 		END FindCommandRange;
 
 		PROCEDURE FindCommand*(pos: SIZE; VAR start, end : SIZE);
-		VAR ch : SIGNED32;
+		VAR ch : Char32;
 		BEGIN
 			text.AcquireRead;
 			utilreader.SetDirection(-1); utilreader.SetPosition(pos);
@@ -4173,7 +4173,7 @@ VAR
 	StrTextView : Strings.String;
 
 	DefaultStyle : POINTER TO RECORD END;
-	
+
 	DefaultMinimalUpdateDelay* := 30: SIGNED32; (*limit update frequency for new TextView on slow systems; milliseconds between TextView updates*)
 
 (* Actually, this is a hack... but for now, do it.  *)
@@ -4241,7 +4241,7 @@ BEGIN
 	IF (userData # NIL) & (userData IS DZ) THEN
 		EnsureAttribute(attr);
 		dz := userData(DZ);
-		GetNewSize(attr.fontInfo.name,-dz.value, attr.fontInfo.size, attr.fontInfo.size);
+			GetNewSize(attr.fontInfo.name,-dz.value, attr.fontInfo.size, attr.fontInfo.size);
 		attr.fontInfo.fontcache := NIL;
 	END;
 END ChangeAttribute;

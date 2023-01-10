@@ -320,7 +320,7 @@ TYPE
 	VAR
 		(* FAT Long Directory Entry Structure *)
 		order : SIGNED16;   (* in cluster chain *)
-		name: ARRAY 13 OF SIGNED32;  (* unicode *)
+		name: ARRAY 13 OF UTF8Strings.Char32;  (* unicode *)
 		type : SIGNED16;
 		chksum : SIGNED32;
 		FstClusLO : SIGNED32;
@@ -1310,7 +1310,7 @@ TYPE
 			temp : LongEntry;
 			order : SIGNED16;
 			longName : ARRAY 256 OF CHAR;  (*  maximum length of a long file name: 255 characters + NUL *)
-			unicode : ARRAY 256 OF SIGNED32;
+			unicode : ARRAY 256 OF UTF8Strings.Char32;
 			lastFound : BOOLEAN;
 			padding : BOOLEAN; firstPadding : SIGNED16;
 			i : SIGNED16;

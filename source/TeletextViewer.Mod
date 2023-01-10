@@ -54,7 +54,7 @@ TYPE
 			attr, fg, bg : SIGNED8;
 			boxed : BOOLEAN;
 			i, begin, pos : SIZE;
-			nl: ARRAY 3 OF SIGNED32;
+			nl: ARRAY 3 OF Texts.Char32;
 			attributes: Texts.Attributes;
 			text : Texts.Text;
 		BEGIN

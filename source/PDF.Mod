@@ -1093,7 +1093,7 @@ END WritePDFStringPos;
 
 (*ALEX 2005.10.31*)
 PROCEDURE GetCharSpacings(f: WMGraphics.Font; VAR text: ARRAY OF CHAR; i: SIZE; VAR g : WMGraphics.GlyphSpacings): BOOLEAN;
-VAR code: SIGNED32;
+VAR code: UTF8Strings.Char32;
 BEGIN
 	IF UTF8Strings.DecodeChar(text, i, code) THEN
 		IF f.HasChar(code) THEN f.GetGlyphSpacings(code, g);

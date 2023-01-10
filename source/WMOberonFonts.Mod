@@ -22,7 +22,7 @@ TYPE
 		runs : ARRAY 32 OF RECORD beg, end : SIGNED32 END;
 
 		(* map unicode to oberon *)
-		PROCEDURE MapChars(VAR ch : SIGNED32);
+		PROCEDURE MapChars(VAR ch : WMGraphics.Char32);
 		BEGIN
 
 			CASE ch OF
@@ -70,7 +70,7 @@ TYPE
 			Raster.Fill(placeholderimg, 0, 0, 15, 15, pix, mode)
 		END Init;
 
-		PROCEDURE GetGlyphMap*(code : SIGNED32; VAR map : WMGraphics.Image);
+		PROCEDURE GetGlyphMap*(code : WMGraphics.Char32; VAR map : WMGraphics.Image);
 		BEGIN
 			MapChars(code);
 			IF (code >= 0) & (code < 256) & (glyphs[code].available) & (glyphs[code].img # NIL) THEN
@@ -79,13 +79,13 @@ TYPE
 			END
 		END GetGlyphMap;
 
-		PROCEDURE HasChar*(code : SIGNED32) : BOOLEAN;
+		PROCEDURE HasChar*(code : WMGraphics.Char32) : BOOLEAN;
 		BEGIN
 			MapChars(code);
 			RETURN (code >= 0) & (code < 256) & (glyphs[code].available)
 		END HasChar;
 
-		PROCEDURE GetGlyphSpacings*(code : SIGNED32; VAR glyphSpacings : WMGraphics.GlyphSpacings);
+		PROCEDURE GetGlyphSpacings*(code : WMGraphics.Char32; VAR glyphSpacings : WMGraphics.GlyphSpacings);
 		BEGIN
 			MapChars(code);
 			IF (code >= 0) & (code < 256) & (glyphs[code].available) (* & (glyphs[code].img # NIL) *) THEN

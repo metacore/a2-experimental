@@ -10,7 +10,7 @@ MODULE OpenType;	(** AUTHOR "eos, PL"; PURPOSE "Bluebottle port of OpenType"; *)
 
 	IMPORT
 		OpenTypeInt, OpenTypeScan,
-		KernelLog, Strings, Files, Configuration;
+		KernelLog, Strings, UTF8Strings, Files, Configuration;
 
 
 	CONST
@@ -36,6 +36,7 @@ MODULE OpenType;	(** AUTHOR "eos, PL"; PURPOSE "Bluebottle port of OpenType"; *)
 
 
 	TYPE
+		Char32 = UTF8Strings.Char32;
 		Fixed* = OpenTypeInt.Fixed;
 		F26D6* = OpenTypeInt.F26D6;
 		F2D14* = OpenTypeInt.F2D14;
@@ -750,7 +751,7 @@ MODULE OpenType;	(** AUTHOR "eos, PL"; PURPOSE "Bluebottle port of OpenType"; *)
 	END GetName;
 
 	(** map Unicode character code to glyph number **)
-	PROCEDURE UnicodeToGlyph* (font: Font; code: SIGNED32): SIGNED32;
+	PROCEDURE UnicodeToGlyph* (font: Font; code: Char32): SIGNED32;
 		VAR lo, hi, m, start, end, delta, offset, idx: SIGNED32;
 	BEGIN
 		lo := 0; hi := font.cmap.segCount;
@@ -765,7 +766,7 @@ MODULE OpenType;	(** AUTHOR "eos, PL"; PURPOSE "Bluebottle port of OpenType"; *)
 		IF (start <= code) & (code <= end) THEN
 			delta := font.cmap.seg[lo].delta; offset := font.cmap.seg[lo].offset;
 			IF offset < 0 THEN
-				RETURN (code + delta) MOD 10000H
+				RETURN SIGNED32(code + delta) MOD 10000H
 			ELSE
 				idx := font.cmap.glyph[code - start + offset];
 				IF idx = 0 THEN

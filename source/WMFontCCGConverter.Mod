@@ -292,7 +292,7 @@ TYPE
 
 	GlyphRef = RECORD
 		 x, y, w, h : SIGNED32;
-		 refucs, refvariant : SIGNED32;
+		 refucs:  UTF8Strings.Char32; refvariant :  SIGNED32;
 		 refPtr : Glyph;
 	END;
 
@@ -375,7 +375,7 @@ TYPE
 				ASSERT(g.nofSubComponents <= 255);
 				w.Char(CHR(g.nofSubComponents));
 				FOR i := 0 TO g.nofSubComponents - 1 DO
-					w.Net32(g.subComponents[i].refucs);
+					w.Net32(SIGNED32(g.subComponents[i].refucs));
 					w.Char(CHR(g.subComponents[i].refvariant));
 					w.Char(CHR(g.subComponents[i].x));
 					w.Char(CHR(g.subComponents[i].y));
@@ -695,7 +695,7 @@ TYPE
 
 (* END optimized routines for native font *)
 
-		PROCEDURE FindGlyph(ucs, variant : SIGNED32) : Glyph;
+		PROCEDURE FindGlyph(ucs :  UTF8Strings.Char32; variant : SIGNED32) : Glyph;
 		VAR g, tg : Glyph; i : SIZE; ptr : ANY;
 		BEGIN
 			g := NIL;
@@ -738,7 +738,7 @@ TYPE
 			VV VV
 			= fix separator *)
 		PROCEDURE ReadUCSVariant(r : Streams.Reader; VAR ucs, variant : SIGNED32);
-		VAR c : CHAR; tucs, tv : SIGNED32;
+		VAR c : CHAR; tucs : UTF8Strings.Char32; tv : SIGNED32;
 		BEGIN
 			ucs := GetNCharHex(r, 6);
 			variant := GetNCharHex(r, 2);
@@ -865,7 +865,7 @@ BEGIN
 END Export;
 
 (* read a UTF8 character form a stream *)
-PROCEDURE GetUTF8Char(r : Streams.Reader; VAR u : SIGNED32) : BOOLEAN;
+PROCEDURE GetUTF8Char(r : Streams.Reader; VAR u : UTF8Strings.Char32) : BOOLEAN;
 VAR ch : ARRAY 8 OF CHAR; i : SIZE;
 BEGIN
 	ch[0] := r.Get();

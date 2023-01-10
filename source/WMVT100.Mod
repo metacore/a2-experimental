@@ -590,7 +590,7 @@ MODULE WMVT100; (* ejz,  ph *)
 
 			PROCEDURE Copy;
 				VAR
-					l: Line; apos, pos, ofs, end: SIZE; buf: ARRAY 2 OF SIGNED32;
+					l: Line; apos, pos, ofs, end: SIZE; buf: ARRAY 2 OF Texts.Char32;
 					attr: Attribute; tattr: Texts.Attributes;
 			BEGIN {EXCLUSIVE}
 				IF sel.beg.line = NIL THEN RETURN END;
@@ -644,7 +644,7 @@ MODULE WMVT100; (* ejz,  ph *)
 			END Copy;
 
 			PROCEDURE Paste;
-				VAR R: Texts.TextReader; ch: SIGNED32;
+				VAR R: Texts.TextReader; ch: Texts.Char32;
 			BEGIN {EXCLUSIVE}
 				Texts.clipboard.AcquireRead();
 				NEW(R, Texts.clipboard);

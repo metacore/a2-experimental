@@ -23,8 +23,8 @@ CONST
 	BufferedAttributes=256; (* number of attributes buffered before updates must take place *)
 
 TYPE
-	Char32 = Texts.Char32;
-	Text = Texts.Text;
+	Char32* = Texts.Char32;
+	Text* = Texts.Text;
 	LoaderProc* = PROCEDURE {DELEGATE} (text : Text; filename : ARRAY OF CHAR; VAR res : INTEGER);
 	Format* = ARRAY 128 OF CHAR;
 
@@ -42,7 +42,7 @@ TYPE
 
 	TextWriter* = OBJECT (Streams.Writer);
 	VAR text : Texts.Text;
-		ucs32buf : POINTER TO ARRAY OF SIGNED32;
+		ucs32buf : POINTER TO ARRAY OF Char32;
 		fontName : ARRAY 32 OF CHAR;
 		fontSize: SIZE; fontVOff : SIGNED32; fontColor, fontBgColor: SIGNED32 (*WMGraphics.Color*);
 		fontStyle : SET;
@@ -191,7 +191,7 @@ TYPE
 	TextReader* = OBJECT (Streams.Reader)
 	VAR
 		reader: Texts.TextReader;
-		remainder: SIGNED32;
+		remainder: Char32;
 
 		PROCEDURE &Init*(text : Texts.Text);
 		BEGIN
@@ -201,7 +201,7 @@ TYPE
 		END Init;
 
 		PROCEDURE Receive (VAR buf: ARRAY OF CHAR; ofs, size, min: SIZE;  VAR len: SIZE; VAR res: INTEGER);
-		VAR ucs32: SIGNED32; prevofs, offs: SIZE;
+		VAR ucs32: Char32; prevofs, offs: SIZE;
 		BEGIN
 			reader.text.AcquireRead;
 			len := 0; res := Streams.Ok;
@@ -713,8 +713,8 @@ TYPE
 		END WriteText;
 
 		(* map unicode to oberon *)
-		PROCEDURE UniToOberon(ch : SIGNED32) : SIGNED32;
-		VAR ret : SIGNED32;
+		PROCEDURE UniToOberon(ch : Char32) : Char32;
+		VAR ret : Char32;
 		BEGIN
 			CASE ch OF
 				0C4H :	 ret := 128;
@@ -1726,7 +1726,7 @@ TYPE
 		END Open;
 
 		PROCEDURE WriteText*(text : Texts.Text; VAR res : INTEGER);
-		VAR r : Texts.TextReader; ch : Texts.Char32; i, j: SIZE; k : INTEGER;
+		VAR r : Texts.TextReader; ch : Char32; i, j: SIZE; k : INTEGER;
 			byte : ARRAY 2 OF CHAR;
 		BEGIN
 			res :=  -1;
@@ -1738,7 +1738,7 @@ TYPE
 				IF ((ch >= 48) & (ch <= 57)) OR ((ch >= 65) & (ch <= 70)) OR ((ch >= 97) & (ch <= 102)) THEN
 					byte[j] := CHR(ch); INC(j);
 				END;
-				IF (j = 2) THEN j := 0; Strings.HexStrToInt(byte, ch, k); out.Char(CHR(ch)); END;
+				IF (j = 2) THEN j := 0; Strings.HexStrToInt(byte, ch(SIGNED32), k); out.Char(CHR(ch)); END;
 			END;
 			out.Update;
 
@@ -2516,8 +2516,8 @@ BEGIN (* caller must hold read lock on text *)
 	NEW(r, text);  r.SetPosition(from);
 
 	dM := 1; FOR i := 0 TO m-2 DO dM := (d*dM) MOD q END;
-	h1 := 0; FOR i := 0 TO m-1 DO h1 := (h1*d + (pattern[i] MOD d)) MOD q END;
-	h2 := 0; FOR i := 0 TO m-1 DO r.ReadCh(ch); ch := ch MOD d; h2 := (h2*d + ch) MOD q END;
+	h1 := 0; FOR i := 0 TO m-1 DO h1 := (h1*d + SIGNED32(pattern[i]) MOD d) MOD q END;
+	h2 := 0; FOR i := 0 TO m-1 DO r.ReadCh(ch); ch := ch MOD d; h2 := (h2*d + SIGNED32(ch)) MOD q END;
 	i := from; found := FALSE;
 
 	IF (h1 = h2) THEN (* verify *)
@@ -2530,8 +2530,8 @@ BEGIN (* caller must hold read lock on text *)
 	END;
 
 	WHILE ~found & (i < n-m) DO
-		r.SetPosition(i); r.ReadCh(ch); ch := ch MOD d; h2 := (h2 + d*q - ch*dM) MOD q;
-		r.SetPosition(i + m); r.ReadCh(ch); ch := ch MOD d; h2 := (h2*d + ch) MOD q;
+		r.SetPosition(i); r.ReadCh(ch); ch := ch MOD d; h2 := (h2 + d*q - SIGNED32(ch)*dM) MOD q;
+		r.SetPosition(i + m); r.ReadCh(ch); ch := ch MOD d; h2 := (h2*d + SIGNED32(ch)) MOD q;
 		INC(i);
 
 		IF (h1 = h2) THEN (* verify *)
@@ -2600,7 +2600,7 @@ BEGIN (* caller must hold read lock on text *)
 		END;
 		IF ignoreCase THEN UpperCaseChar32(ch); END;
 		ch := ch MOD d;
-		h1 := (h1*d + ch) MOD q;
+		h1 := (h1*d + SIGNED32(ch)) MOD q;
 	END;
 
 	(* calculate hash value for the first 'patternLength' characters of the text to be searched *)
@@ -2611,7 +2611,7 @@ BEGIN (* caller must hold read lock on text *)
 		r.ReadCh(ch);
 		IF ignoreCase THEN UpperCaseChar32(ch); END;
 		ch := ch MOD d;
-		h2 := (h2*d + ch) MOD q;
+		h2 := (h2*d + SIGNED32(ch)) MOD q;
 	END;
 
 	i := from; found := FALSE;
@@ -2639,7 +2639,7 @@ BEGIN (* caller must hold read lock on text *)
 		r.SetPosition(i); r.ReadCh(ch);
 		IF ignoreCase THEN UpperCaseChar32(ch); END;
 		ch := ch MOD d;
-		h2 := (h2 + d*q - ch*dM) MOD q;
+		h2 := (h2 + d*q - SIGNED32(ch)*dM) MOD q;
 
 		(* add next character to hash value *)
 		IF backwards THEN
@@ -2650,7 +2650,7 @@ BEGIN (* caller must hold read lock on text *)
 		r.ReadCh(ch);
 		IF ignoreCase THEN UpperCaseChar32(ch); END;
 		ch := ch MOD d;
-		h2 := (h2*d + ch) MOD q;
+		h2 := (h2*d + SIGNED32(ch)) MOD q;
 
 		IF backwards THEN
 			DEC(i);

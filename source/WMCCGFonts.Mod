@@ -53,14 +53,14 @@ TYPE
 			ascent := size; descent := 0
 		END New;
 
-		PROCEDURE HasChar*(code : SIGNED32) : BOOLEAN;
+		PROCEDURE HasChar*(code : WMGraphics.Char32) : BOOLEAN;
 		BEGIN
 			RETURN gf.GetGlyph(code, 0) # NIL
 		END HasChar;
 
 
 		(** Render character char to canvas at x, y (baseline) *)
-		PROCEDURE RenderChar*(canvas : WMGraphics. Canvas ; x, y : FLOAT32; char : SIGNED32);
+		PROCEDURE RenderChar*(canvas : WMGraphics. Canvas ; x, y : FLOAT32; char : WMGraphics.Char32);
 		VAR glyph : Glyph;
 			points : ARRAY 2560 OF WMGraphics.Point2d;
 		BEGIN
@@ -71,7 +71,7 @@ TYPE
 		END RenderChar;
 
 		(** return spacing of character code *)
-		PROCEDURE GetGlyphSpacings*(code : SIGNED32; VAR glyphSpacings : WMGraphics.GlyphSpacings);
+		PROCEDURE GetGlyphSpacings*(code : WMGraphics.Char32; VAR glyphSpacings : WMGraphics.GlyphSpacings);
 		BEGIN
 			glyphSpacings.width := size;
 			glyphSpacings.height := size;
@@ -88,7 +88,7 @@ TYPE
 		name : ARRAY 256 OF CHAR;
 
 		(* find the range where a glyph is inside *)
-		PROCEDURE FindGlyphRange(code : SIGNED32; VAR glyphRangeIndex : SIZE) : BOOLEAN;
+		PROCEDURE FindGlyphRange(code : WMGraphics.Char32; VAR glyphRangeIndex : SIZE) : BOOLEAN;
 		VAR a, b, m : SIZE;
 		BEGIN
 			glyphRangeIndex := 0;
@@ -160,7 +160,7 @@ TYPE
 			FOR i := 0 TO size DO ReadPackedGlyph(r, glyphRanges[rangeIndex].glyphs[i]) END
 		END LoadRange;
 
-		PROCEDURE GetGlyph*(ucs, variant : SIGNED32) : Glyph;
+		PROCEDURE GetGlyph*(ucs: WMGraphics.Char32; variant : SIGNED32) : Glyph;
 		VAR rangeIndex : SIZE; glyph : Glyph;
 		BEGIN
 			IF FindGlyphRange(ucs, rangeIndex) THEN

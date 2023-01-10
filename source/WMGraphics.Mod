@@ -29,7 +29,7 @@ CONST
 
 TYPE
 	Real* = FLOAT32;
-	Char32 = SIGNED32;
+	Char32* = UTF8Strings.Char32;
 	Point2d* = RECORD x*, y* : SIZE END;
 	Image* = OBJECT(Raster.Image)
 	VAR
@@ -93,7 +93,7 @@ TYPE
 
 		(** Render an UTF8 string to a canvas *)
 		PROCEDURE RenderString*(canvas : Canvas ; x, y : Real; CONST text : ARRAY OF CHAR);
-		VAR i, len: SIZE; code : SIGNED32; g : GlyphSpacings;
+		VAR i, len: SIZE; code : Char32; g : GlyphSpacings;
 		BEGIN
 			len := LEN(text); i := 0;
 			WHILE (i < len) & (text[i] # 0X) DO
@@ -113,7 +113,7 @@ TYPE
 
 		(** Render an UTF8 string to a canvas *)
 		PROCEDURE GetStringSize*(CONST text : ARRAY OF CHAR; VAR dx, dy : SIZE);
-		VAR i, len: SIZE; code : SIGNED32; g : GlyphSpacings;
+		VAR i, len: SIZE; code : Char32; g : GlyphSpacings;
 		BEGIN
 			len := LEN(text); i := 0; dx := 0; dy := GetHeight();
 			WHILE (i < len) & (text[i] # 0X) DO
@@ -138,11 +138,11 @@ TYPE
 		END RenderChar;
 
 		(** return a bitmap of character code *)
-		PROCEDURE GetGlyphMap*(code : SIGNED32; VAR map : Image);
+		PROCEDURE GetGlyphMap*(code : Char32; VAR map : Image);
 		END GetGlyphMap;
 
 		(** return spacing of character code *)
-		PROCEDURE GetGlyphSpacings*(code : SIGNED32; VAR glyphSpacings : GlyphSpacings);
+		PROCEDURE GetGlyphSpacings*(code : Char32; VAR glyphSpacings : GlyphSpacings);
 		END GetGlyphSpacings;
 	END Font;
 
@@ -1077,7 +1077,7 @@ BEGIN
 END FBRenderChar;
 
 (** return the fallback spacing of character code *)
-PROCEDURE FBGetGlyphSpacings*(code : SIGNED32; VAR glyphSpacings : GlyphSpacings);
+PROCEDURE FBGetGlyphSpacings*(code : Char32; VAR glyphSpacings : GlyphSpacings);
 VAR i : SIZE; f : Font; found : BOOLEAN; str : ARRAY 16 OF CHAR;
 BEGIN
 	i := 0; found := FALSE;

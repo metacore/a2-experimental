@@ -456,7 +456,7 @@ TYPE
 	END Scanner;
 
 PROCEDURE InitWithText*(t: Texts.Text; pos: SIZE): Scanner;
-	VAR buffer: Strings.String; len, i, j: SIZE; ch: INTEGER; r: Texts.TextReader;
+	VAR buffer: Strings.String; len, i, j: SIZE; ch: Texts.Char32; r: Texts.TextReader;
 	bytesPerChar: SIGNED32;
 	s : Scanner;
 BEGIN
